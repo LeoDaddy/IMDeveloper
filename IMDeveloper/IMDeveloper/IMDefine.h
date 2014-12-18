@@ -10,7 +10,7 @@
 #import "UIView+IM.h"
 #import "UIImage+IM.h"
 
-#define APPKey @""
+#define IMDeveloper_APPKey @"d3fecc6841c022fc7b7021dd"
 
 #define RGB(r, g, b) [UIColor colorWithRed:r / 255.0 green:g / 255.0 blue:b / 255.0 alpha:1]
 

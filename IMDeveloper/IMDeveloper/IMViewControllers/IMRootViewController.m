@@ -184,7 +184,7 @@
     
     [alertView show];
     
-    [[NSNotificationCenter defaultCenter] postNotificationName:@"userRelationUpdated" object:nil];
+    [[NSNotificationCenter defaultCenter] postNotificationName:IMReloadFriendlistNotification object:nil];
 }
 
 - (void)didReceiveRejectFromCustomUserID:(NSString *)customUserID serverSendTime:(UInt32)timeIntervalSince1970 reason:(NSString *)reason {

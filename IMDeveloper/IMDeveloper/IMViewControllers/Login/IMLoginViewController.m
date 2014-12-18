@@ -84,12 +84,15 @@
     
     [line1 setBackgroundColor:[UIColor whiteColor]];
     [_tableview setTableHeaderView:line1];
-    [[self view] addSubview:line1];
     
     UILabel *line2 = [[UILabel alloc] initWithFrame:CGRectMake(0, rect.size.height / 2 + 44, 320, 2)];
     
     [line2 setBackgroundColor:[UIColor whiteColor]];
     [[self view] addSubview:line2];
+    
+    [_tableview setShowsHorizontalScrollIndicator:NO];
+    [_tableview setShowsVerticalScrollIndicator:NO];
+    [_tableview setScrollEnabled:NO];
 
     _userNameField = [[UITextField alloc] initWithFrame:CGRectMake(0, 0, 320, 40)];
     
@@ -158,7 +161,7 @@
             return;
         }
         
-        [g_pIMMyself initWithCustomUserID:customUserID appKey:@"00b6413a92d4c1c84ad99e0a"];
+        [g_pIMMyself initWithCustomUserID:customUserID appKey:IMDeveloper_APPKey];
         
         [g_pIMMyself setPassword:password];
         [g_pIMMyself setAutoLogin:NO];
