@@ -9,6 +9,7 @@
 #import "IMSearchUserViewController.h"
 #import "IMAroundViewCell.h"
 #import "IMUserInformationViewController.h"
+#import "IMDefine.h"
 
 //IMSDK Headers
 #import "IMSDK+CustomUserInfo.h"
@@ -53,6 +54,7 @@
     
     _searchBar = [[UISearchBar alloc] initWithFrame:CGRectMake(0, 0, 320, 44)];
     
+    [_searchBar setPlaceholder:@"请填写你要添加的用户名"];
     [_searchBar setDelegate:self];
     [_tableView setTableHeaderView:_searchBar];
     
@@ -92,6 +94,7 @@
         [g_pIMSDK requestMainPhotoOfUser:[_searchBar text] success:^(UIImage *mainPhoto) {
             if (mainPhoto) {
                 [cellView setHeadPhoto:mainPhoto];
+                [[NSNotificationCenter defaultCenter] postNotificationName:IMReloadMainPhotoNotification([_searchBar text]) object:nil];
             }
         } failure:^(NSString *error) {
             

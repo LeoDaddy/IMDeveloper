@@ -107,7 +107,7 @@
     
     [_searchBar setDelegate:self];
     [_searchBar setBackgroundColor:[UIColor whiteColor]];
-    [_searchBar setPlaceholder:@"搜索"];
+    [_searchBar setPlaceholder:@"搜索好友"];
     
     UIView *customTableHeaderView = [[UIView alloc] initWithFrame:CGRectMake(0.0, 0.0, 320.0, 44.0)];
     

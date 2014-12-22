@@ -146,6 +146,15 @@
  */
 - (void)failedToRemoveUserFromFriendsList:(NSString *)customUserID clientActionTime:(UInt32)clientActionTime error:(NSString *)error;
 
+/**
+ @method
+ @brief 移除好友失败的回调方法
+ @param customUserID        移除对象的用户名
+ @param clientActionTime    1970年到客户端移除好友时间的秒数
+ @param error               移除好友失败的错误信息
+ */
+- (void)didBreakUpFriendshipWithCustomUserID:(NSString *)customUserID;
+
 
 #pragma mark - 黑名单列表操作的回调方法
 
@@ -203,7 +212,7 @@
  @discussion 用户登录成功后，IMSDK会在后台获取用户关系列表，返回值为YES表示已获取成功，NO表示还在获取，如果获取失败返回值也为YES。
  @return YES表示已初始化成功，NO表示初始化失败
  */
-- (BOOL)relationshipDidInitialize;
+- (BOOL)relationshipInitialized;
 
 /**
  @property

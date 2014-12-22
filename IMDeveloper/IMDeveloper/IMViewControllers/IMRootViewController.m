@@ -193,6 +193,10 @@
     [alertView show];
 }
 
+- (void)didBreakUpFriendshipWithCustomUserID:(NSString *)customUserID {
+    [[NSNotificationCenter defaultCenter] postNotificationName:IMReloadFriendlistNotification object:nil];
+}
+
 #pragma mark - alertview delegate
 
 - (void)alertView:(UIAlertView *)alertView clickedButtonAtIndex:(NSInteger)buttonIndex {
