@@ -7,6 +7,11 @@
 //
 
 #import "IMMyselfInfoTableViewCell.h"
+#import "IMDefine.h"
+
+//IMSDK Headers
+#import "IMSDK+MainPhoto.h"
+#import "IMMyself.h"
 
 @implementation IMMyselfInfoTableViewCell {
     UIImageView *_headView;
@@ -23,6 +28,7 @@
         [_headView setClipsToBounds:YES];
         [_headView setContentMode:UIViewContentModeScaleAspectFill];
         [[self contentView] addSubview:_headView];
+        
     }
     return self;
 }

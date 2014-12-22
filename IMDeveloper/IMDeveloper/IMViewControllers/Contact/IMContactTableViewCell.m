@@ -7,10 +7,19 @@
 //
 
 #import "IMContactTableViewCell.h"
+#import "IMDefine.h"
+
+//IMSDK Headers
+#import "IMSDK+MainPhoto.h"
 
 @implementation IMContactTableViewCell {
     UIImageView *_headView;
     UILabel *_usernameLabel;
+}
+
+- (void)dealloc
+{
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
 
 - (id)initWithStyle:(UITableViewCellStyle)style reuseIdentifier:(NSString *)reuseIdentifier
@@ -45,6 +54,9 @@
 - (void)setCustomUserID:(NSString *)customUserID {
     _customUserID = customUserID;
     [_usernameLabel setText:customUserID];
+    
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(reloadHeadImage) name:IMReloadMainPhotoNotification(customUserID) object:nil];
 }
 
 - (void)awakeFromNib
@@ -59,4 +71,13 @@
     // Configure the view for the selected state
 }
 
+- (void)reloadHeadImage {
+    _headPhoto = [g_pIMSDK mainPhotoOfUser:_customUserID];
+    
+    if (_headPhoto == nil) {
+        _headPhoto = [UIImage imageNamed:@"IM_head_default.png"];
+    }
+    
+    [_headView setImage:_headPhoto];
+}
 @end

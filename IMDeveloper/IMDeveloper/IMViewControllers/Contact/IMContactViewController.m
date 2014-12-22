@@ -74,9 +74,9 @@
     [super viewDidLoad];
     // Do any additional setup after loading the view.
     
-//    _rightBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:@"添加" style:UIBarButtonItemStylePlain target:self action:@selector(addFriends:)];
-//    
-//    [[self navigationItem] setRightBarButtonItem:_rightBarButtonItem];
+    _rightBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:@"添加" style:UIBarButtonItemStylePlain target:self action:@selector(addFriends:)];
+    
+    [[self navigationItem] setRightBarButtonItem:_rightBarButtonItem];
     
     _segment = [[UISegmentedControl alloc] initWithFrame:CGRectMake(0, 0, 120, 30)];
     
@@ -124,9 +124,6 @@
 
 - (void)viewWillAppear:(BOOL)animated {
     [super viewWillAppear:animated];
-    
-    [_tableView reloadData];
-    [[_searchDisplayController searchResultsTableView] reloadData];
 }
 
 - (void)didReceiveMemoryWarning
@@ -168,7 +165,9 @@
     array = [array sortedArrayUsingFunction:Array_sortByPinyin context:NULL];
     
     NSInteger offset = 0;
-        
+    
+    NSMutableArray *symbolArray = [[NSMutableArray alloc] initWithCapacity:32];
+    
     for (char c = 'A'; c <= 'Z'; c ++) {
         NSMutableArray *characterArray = [[NSMutableArray alloc] initWithCapacity:32];
         
@@ -181,6 +180,13 @@
             }
             
             if (![[customUserID firstCharactor] isEqualToString:[NSString stringWithFormat:@"%c",c]]) {
+                if ([[customUserID firstCharactor] compare:@"A"] == NSOrderedAscending ||
+                    [[customUserID firstCharactor] compare:@"Z"] == NSOrderedDescending) {
+                    [symbolArray addObject:customUserID];
+                    offset ++;
+                    continue;
+                }
+                
                 break;
             }
             
@@ -199,26 +205,14 @@
         }
     }
     
-    NSMutableArray *characterArray = [[NSMutableArray alloc] initWithCapacity:32];
-
-    for (NSInteger i = offset; i <[array count]; i ++) {
-        NSString *customUserID = [array objectAtIndex:i];
-        
-        if (![customUserID isKindOfClass:[NSString class]]) {
-            continue;
-        }
-        
-        [characterArray addObject:customUserID];
-    }
-    
-    if ([characterArray count] > 0) {
+    if ([symbolArray count] > 0) {
         if (type == 0) {
             [_friendTitles addObject:@"#"];
         } else {
             [_blackTitles addObject:@"#"];
         }
         
-        [classificationArray addObject:characterArray];
+        [classificationArray addObject:symbolArray];
     }
     
     return classificationArray;

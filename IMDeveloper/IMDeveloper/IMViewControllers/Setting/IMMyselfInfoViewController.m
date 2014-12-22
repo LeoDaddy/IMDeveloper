@@ -215,10 +215,11 @@
             [alert show];
         
             
-            
             IMMyselfInfoTableViewCell *cell = [[_tableView visibleCells] objectAtIndex:0];
             
             [cell setHeadPhoto:image];
+            
+            [[NSNotificationCenter defaultCenter] postNotificationName:IMReloadMainPhotoNotification([g_pIMMyself customUserID]) object:nil];
             
         } failure:^(NSString *error) {
             UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"上传头像失败" message:error delegate:nil cancelButtonTitle:@"确定" otherButtonTitles:nil];

@@ -123,6 +123,7 @@
     
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardWillShow:) name:UIKeyboardWillShowNotification object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardWillHide:) name:UIKeyboardWillHideNotification object:nil];
+  
 }
 
 - (void)viewWillAppear:(BOOL)animated {
@@ -183,14 +184,15 @@
                                           
                                           if ([error isEqualToString:@"Wrong Password"]) {
                                               error = @"密码错误,请重新输入";
+                                          } else if ([error isEqualToString:@"customUserID should be only built by letters, Numbers, underscores, or '@''.',and the length between 2 to 32 characters"]){
+                                              error = @"用户名只能由字母、数字、下划线、@符或点组成,长度不能超过32位，也不能少于2位";
+                                          } else if ([error isEqualToString:@"Password length should between 2 to 32 characters"]) {
+                                              error = @"密码长度不能超过32位，也不能少于2位";
                                           }
                                           
-                                          UIAlertView *alertView = [[UIAlertView alloc] initWithTitle:@"登录失败" message:error delegate:nil cancelButtonTitle:@"确定" otherButtonTitles:nil];
+                                          [self performSelector:@selector(loginError:) withObject:error afterDelay:1.0];
                                           
-                                          [alertView show];
                                           
-                                          [_countdownView removeFromSuperview];
-                                          _countdownView = nil;
                                       }];
         
         _countdownView = [[SFCountdownView alloc] initWithFrame:[self view].bounds];
@@ -203,6 +205,15 @@
         
         [alertView show];
     }
+}
+
+- (void)loginError:(NSString *)error {
+    UIAlertView *alertView = [[UIAlertView alloc] initWithTitle:@"登录失败" message:error delegate:nil cancelButtonTitle:@"确定" otherButtonTitles:nil];
+    
+    [alertView show];
+    
+    [_countdownView removeFromSuperview];
+    _countdownView = nil;
 }
 
 - (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event {
@@ -244,14 +255,11 @@
 
 - (BOOL)textFieldShouldReturn:(UITextField *)textField {
     if (textField == _userNameField) {
-        [_userNameField resignFirstResponder];
         [_passwordField becomeFirstResponder];
         
         return NO;
     } else if (textField == _passwordField) {
-        [_userNameField resignFirstResponder];
-        [_passwordField resignFirstResponder];
-        
+        [[self view] endEditing:YES];
         return NO;
     }
     
@@ -297,11 +305,53 @@
 
 #pragma mark - keyboard notifications
 
-- (void)keyboardWillShow:(NSNotification *)note {
+- (void)keyboardWillShow:(NSNotification *)notification {
+    NSDictionary *userInfo = [notification userInfo];
     
+    // Get the origin of the keyboard when it's displayed.
+    NSValue* aValue = [userInfo objectForKey:UIKeyboardFrameEndUserInfoKey];
+    
+    // Get the top of the keyboard as the y coordinate of its origin in self's view's coordinate system. The bottom of the text view's frame should align with the top of the keyboard's final position.
+    CGRect keyboardRect = [aValue CGRectValue];
+    [self.view convertRect:keyboardRect fromView:nil];
+    
+    // Get the duration of the animation.
+    NSValue *animationDurationValue = [userInfo objectForKey:UIKeyboardAnimationDurationUserInfoKey];
+    NSTimeInterval animationDuration;
+    [animationDurationValue getValue:&animationDuration];
+    
+    CGRect frame = self.view.frame;
+    [UIView beginAnimations:nil context:nil];
+    [UIView setAnimationDuration:animationDuration];
+    frame.origin.y =  -80;
+    if ([UIScreen mainScreen].bounds.size.height == 480) {
+        frame.origin.y = -100;
+    }
+    self.view.frame = frame;
+    [UIView commitAnimations];
 }
 
-- (void)keyboardWillHide:(NSNotification *)note {
+- (void)keyboardWillHide:(NSNotification *)notification {
+    NSDictionary *userInfo = [notification userInfo];
     
+    NSValue* aValue = [userInfo objectForKey:UIKeyboardFrameEndUserInfoKey];
+    CGRect keyboardRect = [aValue CGRectValue];
+    [[self view] convertRect:keyboardRect fromView:nil];
+    
+    // Get the duration of the animation.
+    NSValue *animationDurationValue = [userInfo objectForKey:UIKeyboardAnimationDurationUserInfoKey];
+    NSTimeInterval animationDuration;
+    [animationDurationValue getValue:&animationDuration];
+    
+    CGRect frame = self.view.frame;
+    [UIView beginAnimations:nil context:nil];
+    [UIView setAnimationDuration:animationDuration];
+#if __IPHONE_OS_VERSION_MAX_ALLOWED >= 70000
+    frame.origin.y = 0;
+#elif __IPHONE_OS_VERSION_MAX_ALLOWED < 70000
+    frame.origin.y = 20;
+#endif
+    self.view.frame = frame;
+    [UIView commitAnimations];
 }
 @end

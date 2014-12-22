@@ -49,6 +49,6 @@
 
 NSInteger Array_sortByPinyin(NSString *string1, NSString *string2, void *keyForSorting){
     
-    return [[string1 pinYin] compare:[string2 pinYin]];
+    return [[[string1 pinYin] uppercaseString] compare:[[string2 pinYin] uppercaseString] ];
 }
 @end

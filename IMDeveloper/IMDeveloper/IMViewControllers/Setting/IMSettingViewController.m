@@ -60,7 +60,6 @@
     [tableFooterView setBackgroundColor:[UIColor clearColor]];
     [_tableView setTableFooterView:tableFooterView];
     
-    NSLog(@"%@",[g_pIMMyself customUserID]);
     [g_pIMSDK requestMainPhotoOfUser:[g_pIMMyself customUserID] success:^(UIImage *mainPhoto) {
         [_tableView reloadData];
     } failure:^(NSString *error) {
@@ -74,6 +73,9 @@
 //    [tableFooterView addSubview:_logoutBtn];
 //    
 //    [_logoutBtn addTarget:self action:@selector(logoutBtnClick:) forControlEvents:UIControlEventTouchUpInside];
+    
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(reloadData:) name:IMCustomUserInfoDidInitializeNotification object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(reloadData:) name:IMReloadMainPhotoNotification([g_pIMMyself customUserID]) object:nil];
 }
 
 - (void)viewWillAppear:(BOOL)animated {
@@ -198,6 +200,13 @@
         [actionSheet setActionSheetStyle:UIActionSheetStyleAutomatic];
         [actionSheet showFromTabBar:[self tabBarController].tabBar];
     }
+}
+
+
+#pragma mark - notification
+
+- (void)reloadData:(NSNotification *)notification {
+    [_tableView reloadData];
 }
 
 @end

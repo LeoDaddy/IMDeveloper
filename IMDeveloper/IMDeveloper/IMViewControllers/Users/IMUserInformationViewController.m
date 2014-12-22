@@ -112,7 +112,7 @@
     _chatBtn = [[UIButton alloc] initWithFrame:CGRectMake(40, 60, 240, 40)];
     
     [[_chatBtn layer] setCornerRadius:10.0f];
-    [_chatBtn setBackgroundColor:RGB(25, 103, 200)];
+    [_chatBtn setBackgroundColor:RGB(44, 164, 232)];
     [_chatBtn setTitle:@"发送消息" forState:UIControlStateNormal];
     [_tableFooterView addSubview:_chatBtn];
     

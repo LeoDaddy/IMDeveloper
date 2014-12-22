@@ -72,6 +72,10 @@
 
 - (void)rightBarButtonItemClick {
     [g_pIMMyself sendFriendRequest:[_textField text] toUser:_customUserID success:^{
+        UIAlertView *alertView = [[UIAlertView alloc] initWithTitle:@"发送好友请求成功" message:nil delegate:nil cancelButtonTitle:@"确定" otherButtonTitles:nil];
+        
+        [alertView show];
+        
         [[self navigationController] popViewControllerAnimated:YES];
     } failure:^(NSString *error) {
         UIAlertView *alertView = [[UIAlertView alloc] initWithTitle:@"发送好友请求失败" message:error delegate:nil cancelButtonTitle:@"确定" otherButtonTitles:nil];

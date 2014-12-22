@@ -7,11 +7,20 @@
 //
 
 #import "IMSettingTableViewCell.h"
+#import "IMDefine.h"
+
+//IMSDK Headers
+#import "IMSDK+MainPhoto.h"
 
 @implementation IMSettingTableViewCell {
     UIImageView *_headView;
     UILabel *_usernameLabel;
     UILabel *_locationLabel;
+}
+
+- (void)dealloc
+{
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
 
 - (id)initWithStyle:(UITableViewCellStyle)style reuseIdentifier:(NSString *)reuseIdentifier
@@ -57,6 +66,8 @@
     _customUserID = customUserID;
     
     [_usernameLabel setText:_customUserID];
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(reloadHeadImage) name:IMReloadMainPhotoNotification(customUserID) object:nil];
 }
 
 - (void)awakeFromNib
@@ -73,6 +84,16 @@
 
 - (void)setHeadPhoto:(UIImage *)headPhoto {
     _headPhoto = headPhoto;
+    [_headView setImage:_headPhoto];
+}
+
+- (void)reloadHeadImage {
+    _headPhoto = [g_pIMSDK mainPhotoOfUser:_customUserID];
+    
+    if (_headPhoto == nil) {
+        _headPhoto = [UIImage imageNamed:@"IM_head_default.png"];
+    }
+    
     [_headView setImage:_headPhoto];
 }
 

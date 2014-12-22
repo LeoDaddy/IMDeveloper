@@ -162,8 +162,15 @@
         }
     }
     
+    if ([text isEqualToString:@"\n"]) {
+        [[self view] endEditing:YES];
+        
+        return NO;
+    }
+    
     return YES;
 }
+
 /*
 #pragma mark - Navigation
 

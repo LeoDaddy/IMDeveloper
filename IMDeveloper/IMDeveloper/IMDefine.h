@@ -20,6 +20,7 @@
 #define IMCustomUserInfoDidInitializeNotification @"IMCustomUserInfoDidInitializeNotification"
 #define IMReloadBlacklistNotification @"IMReloadBlacklistNotification"
 #define IMReloadFriendlistNotification @"IMReloadFriendlistNotification"
+#define IMReloadMainPhotoNotification(customUserID) [NSString stringWithFormat:@"IMReloadMainPhotoNotification%@",customUserID]
 
 
 

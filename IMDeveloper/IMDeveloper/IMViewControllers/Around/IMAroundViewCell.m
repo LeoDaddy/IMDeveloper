@@ -8,12 +8,21 @@
 
 #import "IMAroundViewCell.h"
 #import "UIView+IM.h"
+#import "IMDefine.h"
+
+//IMSDK Headers
+#import "IMSDK+MainPhoto.h"
 
 @implementation IMAroundViewCell {
     UIImageView *_headView;
     UILabel *_customUserIDLabel;
     UILabel *_distanceLabel;
     UILabel *_signatureLabel;
+}
+
+- (void)dealloc
+{
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
 
 - (id)initWithFrame:(CGRect)frame
@@ -36,9 +45,9 @@
         [_signatureLabel setBackgroundColor:[UIColor clearColor]];
         [_signatureLabel setTextAlignment:NSTextAlignmentCenter];
         [_signatureLabel setNumberOfLines:2];
-        [_signatureLabel setTextColor:[UIColor grayColor]];
-        [_signatureLabel setFont:[UIFont systemFontOfSize:10.0f]];
-        [[_signatureLabel layer] setCornerRadius:2.0f];
+        [_signatureLabel setTextColor:[UIColor darkGrayColor]];
+        [_signatureLabel setFont:[UIFont systemFontOfSize:13.0f]];
+        [[_signatureLabel layer] setCornerRadius:3.0f];
         [_signatureLabel setClipsToBounds: YES];
         [self addSubview:_signatureLabel];
         
@@ -80,6 +89,9 @@
     _customUserID = customUserID;
     
     [_customUserIDLabel setText:_customUserID];
+    
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(reloadHeadImage) name:IMReloadMainPhotoNotification(customUserID) object:nil];
 }
 
 - (void)setSignature:(NSString *)signature {
@@ -97,9 +109,9 @@
     CGSize size;
     
     if ([[[UIDevice currentDevice] systemVersion] floatValue] < 7.0) {
-        size = [_signature sizeWithFont:[UIFont systemFontOfSize:12.0f] constrainedToSize:CGSizeMake(80, self.frame.size.height - 20) lineBreakMode:NSLineBreakByCharWrapping];
+        size = [_signature sizeWithFont:[UIFont systemFontOfSize:14.0f] constrainedToSize:CGSizeMake(80, self.frame.size.height - 20) lineBreakMode:NSLineBreakByCharWrapping];
     } else {
-        size = [_signature boundingRectWithSize:CGSizeMake(80, self.frame.size.height - 20) options:NSStringDrawingUsesLineFragmentOrigin attributes:@{NSFontAttributeName: [UIFont systemFontOfSize:12.0f]} context:nil].size;
+        size = [_signature boundingRectWithSize:CGSizeMake(80, self.frame.size.height - 20) options:NSStringDrawingUsesLineFragmentOrigin attributes:@{NSFontAttributeName: [UIFont systemFontOfSize:14.0f]} context:nil].size;
     
     }
     
@@ -110,5 +122,14 @@
     
 }
 
+- (void)reloadHeadImage {
+    _headPhoto = [g_pIMSDK mainPhotoOfUser:_customUserID];
+    
+    if (_headPhoto == nil) {
+        _headPhoto = [UIImage imageNamed:@"IM_head_default.png"];
+    }
+    
+    [_headView setImage:_headPhoto];
+}
 
 @end
