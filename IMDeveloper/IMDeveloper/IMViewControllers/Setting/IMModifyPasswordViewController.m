@@ -9,6 +9,9 @@
 #import "IMModifyPasswordViewController.h"
 #import "IMDefine.h"
 
+#import "BDKNotifyHUD.h"
+#import "MBProgressHUD.h"
+
 //IMSDK Headers
 #import "IMMyself+UserPassword.h"
 
@@ -22,6 +25,11 @@
     UITextField *_newPasswordField;
     UITextField *_confirmField;
     UIBarButtonItem *_rightBarButtonItem;
+    
+    MBProgressHUD *_hud;
+    BDKNotifyHUD *_notify;
+    NSString *_notifyText;
+    UIImage *_notifyImage;
 }
 
 - (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
@@ -92,49 +100,75 @@
 - (void)rightBarButtonClick:(id)sender {
     if (sender == _rightBarButtonItem) {
         if ([[_oldPasswordField text] length] == 0) {
-            UIAlertView *alertView = [[UIAlertView alloc] initWithTitle:@"温馨提示" message:@"请输入当前密码" delegate:self cancelButtonTitle:@"确定" otherButtonTitles:nil];
-            
-            [alertView show];
+            _notifyText = @"请输入当前密码";
+            _notifyImage = [UIImage imageNamed:@"IM_alert_image.png"];
+            [self displayNotifyHUD];
             
             return;
         }
         
         if ([[_newPasswordField text] length] == 0) {
-            UIAlertView *alertView = [[UIAlertView alloc] initWithTitle:@"温馨提示" message:@"请输入新密码" delegate:self cancelButtonTitle:@"确定" otherButtonTitles:nil];
-            
-            [alertView show];
+            _notifyText = @"请输入新密码";
+            _notifyImage = [UIImage imageNamed:@"IM_alert_image.png"];
+            [self displayNotifyHUD];
             
             return;
         }
         
         if ([[_confirmField text] length] == 0) {
-            UIAlertView *alertView = [[UIAlertView alloc] initWithTitle:@"温馨提示" message:@"请重复新密码" delegate:self cancelButtonTitle:@"确定" otherButtonTitles:nil];
-            
-            [alertView show];
+            _notifyText = @"请重复密码";
+            _notifyImage = [UIImage imageNamed:@"IM_alert_image.png"];
+            [self displayNotifyHUD];
             
             return;
         }
         
         if (![[_newPasswordField text] isEqualToString:[_confirmField text]]) {
-            UIAlertView *alertView = [[UIAlertView alloc] initWithTitle:@"温馨提示" message:@"两次输入密码不一致" delegate:self cancelButtonTitle:@"确定" otherButtonTitles:nil];
-            
-            [alertView show];
+            _notifyText = @"两次输入密码不一致";
+            _notifyImage = [UIImage imageNamed:@"IM_failed_image.png"];
+            [self displayNotifyHUD];
             
             return;
         }
         
+        if (_hud) {
+            [_hud hide:YES];
+            [_hud removeFromSuperview];
+            _hud = nil;
+        }
+        
+        _hud = [[MBProgressHUD alloc] initWithView:[[self tabBarController] view]];
+        
+        [[[self tabBarController] view] addSubview:_hud];
+        [_hud setLabelText:@"请稍候..."];
+        [_hud show:YES];
+        
         [g_pIMMyself modifyOldPassword:[_oldPasswordField text]
                          toNewPassword:[_newPasswordField text] success:^{
-                                   NSLog(@"modify password successed");
-                             UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"修改成功" message:nil delegate:nil cancelButtonTitle:@"确定" otherButtonTitles:nil];
+                             [_hud hide:YES];
+                             [_hud removeFromSuperview];
+                             _hud = nil;
                              
-                             [alert show];
+                             _notifyText = @"修改成功";
+                             _notifyImage = [UIImage imageNamed:@"IM_success_image.png"];
+                             [self displayNotifyHUD];
                                 }
                                failure:^(NSString *error) {
-                                   NSLog(@"modify password failed for %@",error);
-                                   UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"修改失败" message:error delegate:nil cancelButtonTitle:@"确定" otherButtonTitles:nil];
+                                   [_hud hide:YES];
+                                   [_hud removeFromSuperview];
+                                   _hud = nil;
                                    
-                                   [alert show];
+                                   if ([error isEqualToString:@"new password couldn't be equal to original password"]) {
+                                       error = @"新密码不能和原密码一致";
+                                   } else if ([error isEqualToString:@"original password is wrong"]) {
+                                       error = @"当前密码错误";
+                                   } else {
+                                       error = @"修改失败";
+                                   }
+                                   
+                                   _notifyText = error;
+                                   _notifyImage = [UIImage imageNamed:@"IM_failed_image.png"];
+                                   [self displayNotifyHUD];
                                }];
     }
 }
@@ -199,4 +233,30 @@
     
     return cell;
 }
+
+
+#pragma mark - notify hud
+
+- (BDKNotifyHUD *)notify {
+    if (_notify != nil){
+        return _notify;
+    }
+    
+    _notify = [BDKNotifyHUD notifyHUDWithImage:_notifyImage text:_notifyText];
+    [_notify setCenter:CGPointMake(self.tabBarController.view.center.x, self.tabBarController.view.center.y - 20)];
+    return _notify;
+}
+
+- (void)displayNotifyHUD {
+    if (_notify) {
+        [_notify removeFromSuperview];
+        _notify = nil;
+    }
+    
+    [self.tabBarController.view addSubview:[self notify]];
+    [[self notify] presentWithDuration:1.0f speed:0.5f inView:self.tabBarController.view completion:^{
+        [[self notify] removeFromSuperview];
+    }];
+}
+
 @end

@@ -11,6 +11,9 @@
 #import "IMUserInformationViewController.h"
 #import "IMDefine.h"
 
+#import "BDKNotifyHUD.h"
+#import "MBProgressHUD.h"
+
 //IMSDK Headers
 #import "IMSDK+CustomUserInfo.h"
 #import "IMSDK+MainPhoto.h"
@@ -24,6 +27,11 @@
     UITableView *_tableView;
     UISearchBar *_searchBar;
     UISearchDisplayController *_searchDisplayController;
+    
+    MBProgressHUD *_hud;
+    BDKNotifyHUD *_notify;
+    NSString *_notifyText;
+    UIImage *_notifyImage;
     
     //data
     NSMutableArray *_searchResult;
@@ -162,16 +170,34 @@
 #pragma mark - searchBar delegate
 
 - (void)searchBarSearchButtonClicked:(UISearchBar *)searchBar {
+    if (_hud) {
+        [_hud removeFromSuperview];
+        _hud = nil;
+    }
+    
+    _hud = [[MBProgressHUD alloc] initWithView:[self view]];
+    
+    [[self view] addSubview:_hud];
+    [_hud show:YES];
+    
     [[self view] endEditing:YES];
     [_searchResult removeAllObjects];
     
     [g_pIMSDK requestCustomUserInfoWithCustomUserID:[searchBar text] success:^(NSString *customUserInfo) {
+        [_hud hide:YES];
+        [_hud removeFromSuperview];
+        _hud = nil;
+        
         [_searchResult addObject:[searchBar text]];
         [_tableView reloadData];
     } failure:^(NSString *error) {
-        UIAlertView *alertView = [[UIAlertView alloc] initWithTitle:@"无结果" message:nil delegate:nil cancelButtonTitle:@"确定" otherButtonTitles:nil];
+        [_hud hide:YES];
+        [_hud removeFromSuperview];
+        _hud = nil;
         
-        [alertView show];
+        _notifyText = @"无结果";
+        _notifyImage = [UIImage imageNamed:@"IM_failed_image.png"];
+        [self displayNotifyHUD];
         
         [_tableView reloadData];
     }];
@@ -192,6 +218,31 @@
     
     [_searchResult removeAllObjects];
     [_tableView reloadData];
+}
+
+
+#pragma mark - notify hud
+
+- (BDKNotifyHUD *)notify {
+    if (_notify != nil){
+        return _notify;
+    }
+    
+    _notify = [BDKNotifyHUD notifyHUDWithImage:_notifyImage text:_notifyText];
+    [_notify setCenter:CGPointMake(self.tabBarController.view.center.x, self.tabBarController.view.center.y - 20)];
+    return _notify;
+}
+
+- (void)displayNotifyHUD {
+    if (_notify) {
+        [_notify removeFromSuperview];
+        _notify = nil;
+    }
+    
+    [self.tabBarController.view addSubview:[self notify]];
+    [[self notify] presentWithDuration:1.0f speed:0.5f inView:self.tabBarController.view completion:^{
+        [[self notify] removeFromSuperview];
+    }];
 }
 /*
 #pragma mark - Navigation

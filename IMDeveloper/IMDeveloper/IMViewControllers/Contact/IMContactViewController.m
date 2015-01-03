@@ -12,6 +12,7 @@
 #import "NSString+IM.h"
 #import "IMUserInformationViewController.h"
 #import "IMContactTableViewCell.h"
+#import "IMGroupListViewController.h"
 
 //IMSDK Headers
 #import "IMMyself+Relationship.h"
@@ -22,30 +23,24 @@
 // add friends
 - (void)addFriends:(id)sender;
 //load data
-- (NSMutableArray *)classifyData:(NSArray *)array type:(NSInteger)type;
-- (void)segementChanged:(id)sender;
+- (NSMutableArray *)classifyData:(NSArray *)array;
 - (void)searchUserForCustomUserID:(NSString *)searchString;
 - (NSArray *)searchSubString:(NSString *)searchString inArray:(NSArray *)sourceArray;
 
-//notification function
-//- (void)reloadFriendlist;
-//- (void)reloadBlacklist;
 @end
 
 @implementation IMContactViewController {
     //Data
     NSMutableArray *_friendList;
-    NSMutableArray *_blacklist;
     NSMutableArray *_searchResult;
     NSMutableArray *_friendTitles;
-    NSMutableArray *_blackTitles;
-        
+    
     //UI
     UIBarButtonItem *_rightBarButtonItem;
-    UISegmentedControl *_segment;
     UITableView *_tableView;
     UISearchBar *_searchBar;
     UISearchDisplayController *_searchDisplayController;
+    UILabel *_totalNumLabel;
 }
 
 - (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
@@ -54,11 +49,10 @@
     if (self) {
         // Custom initialization
         [self setTitle:@"联系人"];
-//        [_titleLabel setText:@"联系人"];
+        [_titleLabel setText:@"联系人"];
         [[self tabBarItem] setImage:[UIImage imageNamed:@"IM_contact_normal.png"]];
      
         _friendTitles = [[NSMutableArray alloc] initWithCapacity:32];
-        _blackTitles = [[NSMutableArray alloc] initWithCapacity:32];
         _searchResult = [[NSMutableArray alloc] initWithCapacity:32];
         
         //notifications
@@ -78,19 +72,6 @@
     
     [[self navigationItem] setRightBarButtonItem:_rightBarButtonItem];
     
-    _segment = [[UISegmentedControl alloc] initWithFrame:CGRectMake(0, 0, 120, 30)];
-    
-    [_segment insertSegmentWithTitle:@"好友列表" atIndex:0 animated:NO];
-    [_segment insertSegmentWithTitle:@"黑名单" atIndex:1 animated:NO];
-    [_segment setSelectedSegmentIndex:0];
-    [_segment setTintColor:RGB(25, 103, 200)];
-    [_segment setTitleTextAttributes:[NSDictionary dictionaryWithObjectsAndKeys:
-                                     [UIColor whiteColor],
-                                      NSForegroundColorAttributeName, nil] forState:UIControlStateSelected];
-    [[self navigationItem] setTitleView:_segment];
-    
-    [_segment addTarget:self action:@selector(segementChanged:) forControlEvents:UIControlEventValueChanged];
-    
     CGRect rect = [[self view] bounds];
     
     rect.size.height -= 114;
@@ -99,8 +80,8 @@
     
     [_tableView setDataSource:self];
     [_tableView setDelegate:self];
+    [_tableView setBackgroundColor:RGB(242, 242, 242)];
     [_tableView setSectionIndexBackgroundColor:[UIColor clearColor]];
-    [_tableView setTableFooterView:[[UIView alloc] initWithFrame:CGRectZero]];
     [[self view] addSubview:_tableView];
     
     _searchBar = [[UISearchBar alloc] initWithFrame:CGRectMake(0, 0, 320, 44)];
@@ -112,8 +93,34 @@
     UIView *customTableHeaderView = [[UIView alloc] initWithFrame:CGRectMake(0.0, 0.0, 320.0, 44.0)];
     
     [customTableHeaderView addSubview:_searchBar];
-    
     [_tableView setTableHeaderView:customTableHeaderView];
+    
+    UIView *customTableFooterView = [[UIView alloc] initWithFrame:CGRectMake(0.0, 0.0, 320.0, 44.0)];
+    
+    [customTableFooterView setBackgroundColor:[UIColor clearColor]];
+    [_tableView setTableFooterView:customTableFooterView];
+    
+    _totalNumLabel = [[UILabel alloc] initWithFrame:CGRectMake(10, 0, 300, 44)];
+    
+    [_totalNumLabel setBackgroundColor:[UIColor clearColor]];
+    [_totalNumLabel setTextAlignment:NSTextAlignmentCenter];
+    [_totalNumLabel setTextColor:[UIColor grayColor]];
+    [_totalNumLabel setNumberOfLines:0];
+    [_totalNumLabel setFont:[UIFont systemFontOfSize:18]];
+    [customTableFooterView addSubview:_totalNumLabel];
+    
+    if (![g_pIMMyself relationshipInitialized] && [g_pIMMyself loginStatus] == IMMyselfLoginStatusLogined) {
+        [_totalNumLabel setText:@"正在获取好友列表..."];
+        [_totalNumLabel setCenter:CGPointMake(160, 180)];
+    }else if ([_friendList count] > 0) {
+        [_totalNumLabel setText:[NSString stringWithFormat:@"%lu位联系人",(unsigned long)[_friendList count]]];
+        [_totalNumLabel setFrame:CGRectMake(10, 0, 300, 44)];
+
+    } else {
+        [_totalNumLabel setText:@"您当前还没有好友，快去添加好友吧"];
+        [_totalNumLabel setCenter:CGPointMake(160, 180)];
+
+    }
 
     _searchDisplayController = [[UISearchDisplayController alloc] initWithSearchBar:_searchBar contentsController:self];
     
@@ -124,6 +131,8 @@
 
 - (void)viewWillAppear:(BOOL)animated {
     [super viewWillAppear:animated];
+    
+    [self loadData];
 }
 
 - (void)didReceiveMemoryWarning
@@ -145,21 +154,29 @@
 
 - (void)loadData {
     [_friendTitles removeAllObjects];
-    [_blackTitles removeAllObjects];
     
     NSArray *friendList = [g_pIMMyself friends];
     
-    _friendList = [self classifyData:friendList type:0];
-    
-    NSArray *blackList = [g_pIMMyself blacklistUsers];
-    
-    _blacklist = [self classifyData:blackList type:1];
+    _friendList = [self classifyData:friendList];
     
     [_tableView reloadData];
+    
+    if (![g_pIMMyself relationshipInitialized] && [g_pIMMyself loginStatus] == IMMyselfLoginStatusLogined) {
+        [_totalNumLabel setText:@"正在获取好友列表..."];
+        [_totalNumLabel setCenter:CGPointMake(160, 180)];
+    }else if ([_friendList count] > 0) {
+        [_totalNumLabel setText:[NSString stringWithFormat:@"%lu位联系人",(unsigned long)[_friendList count]]];
+        [_totalNumLabel setFrame:CGRectMake(10, 0, 300, 44)];
+
+    } else {
+        [_totalNumLabel setText:@"您当前还没有好友，快去添加好友吧"];
+        [_totalNumLabel setCenter:CGPointMake(160, 180)];
+        
+    }
 }
 
 
-- (NSMutableArray *)classifyData:(NSArray *)array type:(NSInteger)type {
+- (NSMutableArray *)classifyData:(NSArray *)array {
     NSMutableArray *classificationArray = [[NSMutableArray alloc] initWithCapacity:32];
     
     array = [array sortedArrayUsingFunction:Array_sortByPinyin context:NULL];
@@ -195,22 +212,15 @@
         }
         
         if ([characterArray count] > 0) {
-            if (type == 0) {
-                [_friendTitles addObject:[NSString stringWithFormat:@"%c",c]];
-            } else {
-                [_blackTitles addObject:[NSString stringWithFormat:@"%c",c]];
-            }
+            
+            [_friendTitles addObject:[NSString stringWithFormat:@"%c",c]];
             
             [classificationArray addObject:characterArray];
         }
     }
     
     if ([symbolArray count] > 0) {
-        if (type == 0) {
-            [_friendTitles addObject:@"#"];
-        } else {
-            [_blackTitles addObject:@"#"];
-        }
+        [_friendTitles addObject:@"#"];
         
         [classificationArray addObject:symbolArray];
     }
@@ -218,22 +228,10 @@
     return classificationArray;
 }
 
-- (void)segementChanged:(id)sender {
-    if (sender != _segment) {
-        return;
-    }
-    
-    [_tableView reloadData];
-}
-
 - (void)searchUserForCustomUserID:(NSString *)searchString {
     [_searchResult removeAllObjects];
     
-    if ([_segment selectedSegmentIndex] == 0) {
-        [_searchResult addObjectsFromArray:[self searchSubString:searchString inArray:_friendList]];
-    } else {
-        [_searchResult addObjectsFromArray:[self searchSubString:searchString inArray:_blacklist]];
-    }
+    [_searchResult addObjectsFromArray:[self searchSubString:searchString inArray:_friendList]];
     
 }
 
@@ -276,11 +274,7 @@
 
 - (NSArray *)sectionIndexTitlesForTableView:(UITableView *)tableView {
     if (tableView == _tableView) {
-        if ([_segment selectedSegmentIndex] == 0) {
-            return _friendTitles;
-        } else {
-            return _blackTitles;
-        }
+        return _friendTitles;
     }
     
     return nil;
@@ -288,20 +282,15 @@
 
 - (NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section {
     if (tableView == _tableView) {
-        if ([_segment selectedSegmentIndex] == 0) {
-            if ([_friendTitles count] <= section) {
-                return nil;
-            }
-            
-            return [_friendTitles objectAtIndex:section];
-        }  else {
-            if ([_blackTitles count] <= section) {
-                return nil;
-            }
-            
-            return [_blackTitles objectAtIndex:section];
+        if ([_friendTitles count] <= section - 1) {
+            return nil;
         }
-
+        
+        if (section == 0) {
+            return nil;
+        }
+        
+        return [_friendTitles objectAtIndex:section - 1];
     }
     
     return nil;
@@ -309,6 +298,10 @@
 
 - (CGFloat)tableView:(UITableView *)tableView heightForHeaderInSection:(NSInteger)section {
     if (tableView == _tableView) {
+        if(section == 0) {
+            return 0;
+        }
+        
         return 24.0f;
     }
     
@@ -317,13 +310,7 @@
 
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView {
     if (tableView == _tableView) {
-        if ([_segment selectedSegmentIndex] == 0) {
-            return [_friendList count];
-        } else if ([_segment selectedSegmentIndex] == 1) {
-            return [_blacklist count];
-        }
-        
-        return 0;
+        return [_friendList count] + 1;
     }
     
     return 1;
@@ -331,25 +318,17 @@
 
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
     if (tableView == _tableView) {
-        if ([_segment selectedSegmentIndex] == 0) {
-            if ([_friendList count] <= section) {
-                return 0;
-            }
-            
-            NSMutableArray *array = [_friendList objectAtIndex:section];
-            
-            return [array count];
-        } else if ([_segment selectedSegmentIndex] == 1) {
-            if ([_blacklist count] <= section) {
-                return 0;
-            }
-            
-            NSMutableArray *array = [_blacklist objectAtIndex:section];
-            
-            return [array count];
+        if (section == 0) {
+            return 1;
         }
         
-        return 0;
+        if ([_friendList count] <= section - 1) {
+            return 0;
+        }
+        
+        NSMutableArray *array = [_friendList objectAtIndex:section - 1];
+        
+        return [array count];
     }
     
     return [_searchResult count];
@@ -368,27 +347,25 @@
     
     if (tableView == _tableView) {
         //list
-        NSMutableArray *array = nil;
-        
-        if ([_segment selectedSegmentIndex] == 0) {
-            if ([_friendList count] <= [indexPath section]) {
+        if ([indexPath section] == 0) {
+            customUserID = @"群聊";
+        } else  {
+            NSMutableArray *array = nil;
+            
+            if ([_friendList count] <= [indexPath section] - 1) {
                 return cell;
             }
             
-            array = [_friendList objectAtIndex:[indexPath section]];
-        } else {
-            if ([_blacklist count] <= [indexPath section]) {
+            array = [_friendList objectAtIndex:[indexPath section] - 1];
+            
+            if ([array count] <= [indexPath row]) {
                 return cell;
             }
             
-            array = [_blacklist objectAtIndex:[indexPath section]];
+            customUserID = [array objectAtIndex:[indexPath row]];
+
         }
         
-        if ([array count] <= [indexPath row]) {
-            return cell;
-        }
-        
-        customUserID = [array objectAtIndex:[indexPath row]];
     } else {
         //search result
         if ([_searchResult count] <= [indexPath row]) {
@@ -400,7 +377,13 @@
     
     [(IMContactTableViewCell *)cell setCustomUserID: customUserID];
     
-    UIImage *image = [g_pIMSDK mainPhotoOfUser:customUserID];
+    UIImage *image = nil;
+    
+    if ([indexPath section] == 0) {
+        image = [UIImage imageNamed:@"IM_head_default.png"];
+    } else {
+        image = [g_pIMSDK mainPhotoOfUser:customUserID];
+    }
     
     if (image == nil) {
         image = [UIImage imageNamed:@"IM_head_default.png"];
@@ -420,49 +403,34 @@
     NSString *customUserID = nil;
     
     if (_tableView == tableView) {
-        if ([_segment selectedSegmentIndex] == 0) {
-            if ([_friendList count] <= [indexPath section]) {
-                return;
-            }
+        if ([indexPath section] == 0) {
+            IMGroupListViewController *controller = [[IMGroupListViewController alloc] init];
             
-            NSArray *array = [_friendList objectAtIndex:[indexPath section]];
-            
-            if (![array isKindOfClass:[NSArray class]]) {
-                return;
-            }
-            
-            if ([array count] <= [indexPath row]) {
-                return;
-            }
-
-            customUserID = [array objectAtIndex:[indexPath row]];
-            
-            if (![customUserID isKindOfClass:[NSString class]]) {
-                return;
-            }
-            
-        } else {
-            if ([_blacklist count] <= [indexPath section]) {
-                return;
-            }
-            
-            NSArray *array = [_blacklist objectAtIndex:[indexPath section]];
-            
-            if (![array isKindOfClass:[NSArray class]]) {
-                return;
-            }
-            
-            if ([array count] <= [indexPath row]) {
-                return;
-            }
-            
-            customUserID = [array objectAtIndex:[indexPath row]];
-            
-            if (![customUserID isKindOfClass:[NSString class]]) {
-                return;
-            }
-
+            [controller setHidesBottomBarWhenPushed:YES];
+            [[self navigationController] pushViewController:controller animated:YES];
+            return;
         }
+        
+        if ([_friendList count] <= [indexPath section] - 1) {
+            return;
+        }
+        
+        NSArray *array = [_friendList objectAtIndex:[indexPath section] - 1];
+        
+        if (![array isKindOfClass:[NSArray class]]) {
+            return;
+        }
+        
+        if ([array count] <= [indexPath row]) {
+            return;
+        }
+
+        customUserID = [array objectAtIndex:[indexPath row]];
+        
+        if (![customUserID isKindOfClass:[NSString class]]) {
+            return;
+        }
+            
     } else {
         if ([_searchResult count] <= [indexPath row]) {
             return;

@@ -48,6 +48,11 @@
 
 - (void)setHeadPhoto:(UIImage *)headPhoto {
     _headPhoto = headPhoto;
+    
+    if (_headPhoto == nil) {
+        _headPhoto = [UIImage imageNamed:@"IM_head_default.png"];
+    }
+    
     [_headView setImage:_headPhoto];
 }
 

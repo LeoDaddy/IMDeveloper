@@ -12,6 +12,11 @@
 #import "IMAppDelegate.h"
 #import "IMRootViewController.h"
 #import "IMLoginViewController.h"
+#import "IMDefine.h"
+
+//IMSDK Headers
+#import "IMSDK.h"
+#import "IMMyself.h"
 
 @implementation IMAppDelegate
 
@@ -56,6 +61,31 @@
 - (void)applicationDidBecomeActive:(UIApplication *)application
 {
     // Restart any tasks that were paused (or not yet started) while the application was inactive. If the application was previously in the background, optionally refresh the user interface.
+    NSString *loginCustomUserID = [[NSUserDefaults standardUserDefaults] objectForKey:IMLoginCustomUserID];
+    NSString *loginPassword = [[NSUserDefaults standardUserDefaults] objectForKey:IMLoginPassword];
+    
+    if (loginCustomUserID && loginPassword) {
+
+        [[NSNotificationCenter defaultCenter] postNotificationName:IMLoginStatusChangedNotification object:nil];
+        
+        //check login status
+        if ([g_pIMMyself loginStatus] == IMMyselfLoginStatusNone) {
+            [g_pIMMyself initWithCustomUserID:loginCustomUserID appKey:IMDeveloper_APPKey];
+            [g_pIMMyself setPassword:loginPassword];
+            [g_pIMMyself setAutoLogin:NO];
+            [g_pIMMyself loginWithTimeoutInterval:10 success:^(BOOL autoLogin) {
+                [[NSUserDefaults standardUserDefaults] setObject:[NSDate date] forKey:IMLastLoginTime];
+                [[NSUserDefaults standardUserDefaults] setObject:[g_pIMMyself customUserID] forKey:IMLoginCustomUserID];
+                [[NSUserDefaults standardUserDefaults] setObject:[g_pIMMyself password] forKey:IMLoginPassword];
+                [[NSUserDefaults standardUserDefaults] synchronize];
+            } failure:^(NSString *error) {
+                
+            }];
+        }
+        
+        return;
+    }
+
 }
 
 - (void)applicationWillTerminate:(UIApplication *)application
@@ -63,4 +93,15 @@
     // Called when the application is about to terminate. Save data if appropriate. See also applicationDidEnterBackground:.
 }
 
+- (void)application:(UIApplication *)application didRegisterForRemoteNotificationsWithDeviceToken:(NSData *)deviceToken {
+    [g_pIMSDK setDeviceToken:deviceToken];
+}
+
+- (void)application:(UIApplication *)application didFailToRegisterForRemoteNotificationsWithError:(NSError *)error {
+    
+}
+
+- (void)application:(UIApplication *)application didReceiveRemoteNotification:(NSDictionary *)userInfo {
+    
+}
 @end

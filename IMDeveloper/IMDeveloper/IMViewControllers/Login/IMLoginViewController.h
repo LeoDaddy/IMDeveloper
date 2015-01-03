@@ -8,6 +8,6 @@
 
 #import "IMBaseViewController.h"
 
-@interface IMLoginViewController : IMBaseViewController
+@interface IMLoginViewController : UIViewController
 
 @end

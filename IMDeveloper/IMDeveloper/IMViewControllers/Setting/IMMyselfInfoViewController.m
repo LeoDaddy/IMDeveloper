@@ -11,6 +11,8 @@
 #import "IMDefine.h"
 #import "IMMyselfInfoEditViewController.h"
 
+#import "BDKNotifyHUD.h"
+
 //IMSDK Headers
 #import "IMMyself+CustomUserInfo.h"
 #import "IMSDK+MainPhoto.h"
@@ -27,6 +29,10 @@
     NSString *_sex;
     NSString *_location;
     NSString *_signature;
+    
+    BDKNotifyHUD *_notify;
+    NSString *_notifyText;
+    UIImage *_notifyImage;
 }
 
 - (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
@@ -210,10 +216,9 @@
     if (image) {
 
         [g_pIMMyself uploadMainPhoto:image success:^{
-            UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"上传头像成功" message:nil delegate:nil cancelButtonTitle:@"确定" otherButtonTitles:nil];
-            
-            [alert show];
-        
+            _notifyText = @"上传头像成功";
+            _notifyImage = [UIImage imageNamed:@"IM_success_image.png"];
+            [self displayNotifyHUD];
             
             IMMyselfInfoTableViewCell *cell = [[_tableView visibleCells] objectAtIndex:0];
             
@@ -222,9 +227,9 @@
             [[NSNotificationCenter defaultCenter] postNotificationName:IMReloadMainPhotoNotification([g_pIMMyself customUserID]) object:nil];
             
         } failure:^(NSString *error) {
-            UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"上传头像失败" message:error delegate:nil cancelButtonTitle:@"确定" otherButtonTitles:nil];
-            
-            [alert show];
+            _notifyText = @"上传头像失败";
+            _notifyImage = [UIImage imageNamed:@"IM_failed_image.png"];
+            [self displayNotifyHUD];
         }];
     }
 }
@@ -257,14 +262,14 @@
     [_tableView reloadData];
     
     [g_pIMMyself commitCustomUserInfo:[_customInfoArray componentsJoinedByString:@"\n"] success:^{
-        UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"修改成功" message:nil delegate:nil cancelButtonTitle:@"确定" otherButtonTitles:nil];
-       
-        [alert show];
+        _notifyText = @"修改成功";
+        _notifyImage = [UIImage imageNamed:@"IM_success_image.png"];
+        [self displayNotifyHUD];
     } failure:^(NSString *error) {
         
-        UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"修改失败" message:error delegate:nil cancelButtonTitle:@"确定" otherButtonTitles:nil];
-        
-        [alert show];
+        _notifyText = @"修改信息失败";
+        _notifyImage = [UIImage imageNamed:@"IM_failed_image.png"];
+        [self displayNotifyHUD];
         
         NSString *customInfo = [g_pIMMyself customUserInfo];
         
@@ -310,6 +315,31 @@
     }
     
     [_tableView reloadData];
+}
+
+
+#pragma mark - notify hud
+
+- (BDKNotifyHUD *)notify {
+    if (_notify != nil){
+        return _notify;
+    }
+    
+    _notify = [BDKNotifyHUD notifyHUDWithImage:_notifyImage text:_notifyText];
+    [_notify setCenter:CGPointMake(self.tabBarController.view.center.x, self.tabBarController.view.center.y - 20)];
+    return _notify;
+}
+
+- (void)displayNotifyHUD {
+    if (_notify) {
+        [_notify removeFromSuperview];
+        _notify = nil;
+    }
+    
+    [self.tabBarController.view addSubview:[self notify]];
+    [[self notify] presentWithDuration:1.0f speed:0.5f inView:self.tabBarController.view completion:^{
+        [[self notify] removeFromSuperview];
+    }];
 }
 /*
 #pragma mark - Navigation

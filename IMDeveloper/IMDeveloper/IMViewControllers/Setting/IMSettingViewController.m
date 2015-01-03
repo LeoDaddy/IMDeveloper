@@ -11,6 +11,9 @@
 #import "IMMyselfInfoViewController.h"
 #import "IMSettingTableViewCell.h"
 #import "IMModifyPasswordViewController.h"
+#import "IMBlackListViewController.h"
+
+#import "MBProgressHUD.h"
 
 //IMSDK Headers
 #import "IMMyself.h"
@@ -26,6 +29,10 @@
 @implementation IMSettingViewController {
     UITableView *_tableView;
     UIButton *_logoutBtn;
+    
+    MBProgressHUD *_hud;
+    
+    BOOL isLogouting;
 }
 
 - (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
@@ -46,14 +53,18 @@
     [super viewDidLoad];
     // Do any additional setup after loading the view.
     
-    _tableView = [[UITableView alloc] initWithFrame:[[self view] bounds] style:UITableViewStyleGrouped];
+    _tableView = [[UITableView alloc] initWithFrame:[[self view] bounds] style:UITableViewStylePlain];
     
     [_tableView setDataSource:self];
     [_tableView setDelegate:self];
     [_tableView setShowsHorizontalScrollIndicator:NO];
+    [_tableView setBackgroundColor:RGB(242, 242, 242)];
     [[self view] addSubview:_tableView];
     
-    [_tableView setTableHeaderView:[[UIView alloc] initWithFrame:CGRectZero]];
+    UIView *tableHeaderView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 320, 20)];
+    
+    [tableHeaderView setBackgroundColor:[UIColor clearColor]];
+    [_tableView setTableHeaderView:tableHeaderView];
     
     UIView *tableFooterView = [[UIView alloc] init];
     
@@ -104,12 +115,31 @@
 #pragma mark - actionSheet delegate
 
 - (void)actionSheet:(UIActionSheet *)actionSheet clickedButtonAtIndex:(NSInteger)buttonIndex {
+    
     if (buttonIndex == 0) {
+       
+        if (_hud) {
+            [_hud hide:YES];
+            [_hud removeFromSuperview];
+            _hud = nil;
+        }
+        _hud = [[MBProgressHUD alloc] initWithView:[[self tabBarController] view]];
+        
+        [[[self tabBarController] view] addSubview:_hud];
+        [_hud setLabelText:@"正在注销..."];
+        [_hud show:YES];
+        
         [g_pIMMyself logoutOnSuccess:^(NSString *reason) {
-
+            [_hud hide:YES];
+            [_hud removeFromSuperview];
+            _hud = nil;
         } failure:^(NSString *error) {
-            
+            [_hud hide:YES];
+            [_hud removeFromSuperview];
+            _hud = nil;
         }];
+    } else {
+        isLogouting = NO;
     }
 }
 
@@ -121,6 +151,9 @@
 }
 
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
+    if (section == 1) {
+        return 2;
+    }
     return 1;
 }
 
@@ -157,13 +190,17 @@
         [(IMSettingTableViewCell *)cell setCustomUserID:[g_pIMMyself customUserID]];
         
         [cell setAccessoryType:UITableViewCellAccessoryDisclosureIndicator];
-    } else if ([indexPath section] == 1) {
+    }else if([indexPath section] == 1 && [indexPath row] == 0) {
+        [[cell textLabel] setText:@"黑名单用户"];
+        [[cell textLabel] setFont:[UIFont systemFontOfSize:18]];
+        [cell setAccessoryType:UITableViewCellAccessoryDisclosureIndicator];
+    }else if ([indexPath section] == 1 &&[indexPath row] == 1) {
         [[cell textLabel] setText:@"修改密码"];
-        [[cell textLabel] setFont:[UIFont boldSystemFontOfSize:18]];
+        [[cell textLabel] setFont:[UIFont systemFontOfSize:18]];
         [cell setAccessoryType:UITableViewCellAccessoryDisclosureIndicator];
     } else {
         [[cell textLabel] setText:@"退出登录"];
-        [[cell textLabel] setFont:[UIFont boldSystemFontOfSize:18]];
+        [[cell textLabel] setFont:[UIFont systemFontOfSize:18]];
         [[cell textLabel] setTextAlignment:NSTextAlignmentCenter];
     }
 
@@ -178,6 +215,21 @@
     }
 }
 
+- (CGFloat)tableView:(UITableView *)tableView heightForHeaderInSection:(NSInteger)section {
+    return 0.1f;
+}
+
+- (CGFloat)tableView:(UITableView *)tableView heightForFooterInSection:(NSInteger)section {
+    return 20.f;
+}
+
+- (UIView *)tableView:(UITableView *)tableView viewForFooterInSection:(NSInteger)section {
+    UIView *view = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 320, 20)];
+    
+    [view setBackgroundColor:[UIColor clearColor]];
+    return view;
+}
+
 
 #pragma mark - tableview delegate
 
@@ -189,12 +241,23 @@
         
         [controller setHidesBottomBarWhenPushed:YES];
         [[self navigationController] pushViewController:controller animated:YES];
-    } else if ([indexPath section] == 1) {
+    } else if ([indexPath section] == 1 && [indexPath row] == 0) {
+        IMBlackListViewController *controller = [[IMBlackListViewController alloc] init];
+        
+        [controller setHidesBottomBarWhenPushed:YES];
+        [[self navigationController] pushViewController:controller animated:YES];
+    } else if ([indexPath section] == 1 && [indexPath row] == 1) {
         IMModifyPasswordViewController *controller = [[IMModifyPasswordViewController alloc] init];
         
         [controller setHidesBottomBarWhenPushed:YES];
         [[self navigationController] pushViewController:controller animated:YES];
     } else {
+        if (isLogouting) {
+            return;
+        }
+        
+        isLogouting = YES;
+        
         UIActionSheet *actionSheet = [[UIActionSheet alloc] initWithTitle:@"退出后不会删除任何历史数据，也不会收到任何推送消息" delegate:self cancelButtonTitle:@"取消" destructiveButtonTitle:@"退出登录" otherButtonTitles:nil];
         
         [actionSheet setActionSheetStyle:UIActionSheetStyleAutomatic];

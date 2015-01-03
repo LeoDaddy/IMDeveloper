@@ -11,11 +11,17 @@
 #import "IMAroundViewCell.h"
 #import <CoreLocation/CoreLocation.h>
 
+//Third Party
+#import "BDKNotifyHUD.h"
+
 //IMSDK Headers
 #import "IMAroundUsersView.h"
 #import "IMMyself+Around.h"
 #import "IMSDK+MainPhoto.h"
 #import "IMSDK+CustomUserInfo.h"
+
+//update time
+#define MAX_UPDATE_TIME 300
 
 @interface IMAroundViewController ()<IMAroundUsersViewDataSource, IMAroundUsersViewDelegate, IMAroundDelegate>
 
@@ -29,6 +35,17 @@
     NSMutableArray *_aroundList;
     
     IMUserLocation *_myselfLocation;
+    
+    NSDate *_lastUpdateTime;
+    
+    BDKNotifyHUD *_notify;
+    NSString *_notifyText;
+    UIImage *_notifyImage;
+}
+
+- (void)dealloc
+{
+    [_aroundUsersView setDelegate:nil];
 }
 
 - (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
@@ -60,14 +77,24 @@
     [_aroundUsersView setDelegate:self];
     [[self view] addSubview:_aroundUsersView];
     
-    [_aroundUsersView update];
-    
 }
+
 
 - (void)viewWillAppear:(BOOL)animated {
     [super viewWillAppear:animated];
+    if (_lastUpdateTime == nil && [g_pIMMyself aroundState] == IMAroundStateNormal) {
+        [_aroundUsersView update];
+        return;
+    }
     
-    [_aroundUsersView reloadData];
+    NSTimeInterval lastTimeInterval = [_lastUpdateTime timeIntervalSince1970];
+    NSTimeInterval currentTimeInterval = [[NSDate date] timeIntervalSince1970];
+    
+    if (currentTimeInterval - lastTimeInterval > MAX_UPDATE_TIME && [g_pIMMyself aroundState] != IMAroundStateUpdating && [g_pIMMyself aroundState] != IMAroundStatePaging  && [g_pIMMyself loginStatus] == IMMyselfLoginStatusLogined) {
+        
+        //update every five minutes
+        [_aroundUsersView update];
+    }
 }
 
 - (void)didReceiveMemoryWarning
@@ -164,6 +191,46 @@
     [controller setCustomUserID:[userLocation customUserID]];
     [controller setHidesBottomBarWhenPushed:YES];
     [[self navigationController] pushViewController:controller animated:YES];
+}
+
+- (void)didUpdate:(NSArray *)aroundUserLocationList {
+    _lastUpdateTime = [NSDate date];
+}
+
+- (void)updateFailedWithError:(NSString *)error {
+    _notifyText = @"获取周边用户失败，请稍候重试";
+    _notifyImage = [UIImage imageNamed:@"IM_failed_image.png"];
+    [self displayNotifyHUD];
+}
+
+- (void)nextPageFailedWithError:(NSString *)error {
+    _notifyText = @"获取周边用户失败，请稍后重试";
+    _notifyImage = [UIImage imageNamed:@"IM_failed_image.png"];
+    [self displayNotifyHUD];
+}
+
+
+#pragma mark - notify hud
+
+- (BDKNotifyHUD *)notify {
+    if (_notify != nil) {
+        return _notify;
+    }
+    _notify = [BDKNotifyHUD notifyHUDWithImage:_notifyImage text:_notifyText];
+    [_notify setCenter:CGPointMake(self.tabBarController.view.center.x, self.tabBarController.view.center.y - 20)];
+    return _notify;
+}
+
+- (void)displayNotifyHUD {
+    if (_notify) {
+        [_notify removeFromSuperview];
+        _notify = nil;
+    }
+    
+    [self.tabBarController.view addSubview:[self notify]];
+    [[self notify] presentWithDuration:1.0f speed:0.5f inView:self.tabBarController.view completion:^{
+        [[self notify] removeFromSuperview];
+    }];
 }
 /*
 #pragma mark - Navigation

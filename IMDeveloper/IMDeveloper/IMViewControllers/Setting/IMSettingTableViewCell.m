@@ -39,7 +39,7 @@
         
         [_usernameLabel setBackgroundColor:[UIColor clearColor]];
         [_usernameLabel setTextColor:[UIColor blackColor]];
-        [_usernameLabel setFont:[UIFont boldSystemFontOfSize:20]];
+        [_usernameLabel setFont:[UIFont systemFontOfSize:20]];
         [[self contentView] addSubview:_usernameLabel];
         
         _locationLabel = [[UILabel alloc] initWithFrame:CGRectMake(90, 42, 200, 26)];

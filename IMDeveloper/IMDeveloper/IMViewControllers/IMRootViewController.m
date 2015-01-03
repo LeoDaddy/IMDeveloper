@@ -14,6 +14,9 @@
 #import "IMLoginViewController.h"
 #import "IMDefine.h"
 
+//thrid party
+#import "BDKNotifyHUD.h"
+
 //IMSDK Headers
 #import "IMMyself.h"
 #import "IMMyself+CustomMessage.h"
@@ -50,11 +53,19 @@
     UINavigationController *_settingNav;
     
     IMLoginViewController *_loginController;
+    
+    BDKNotifyHUD *_notify;
+    NSString *_notifyText;
+    UIImage *_notifyImage;
 }
 
 - (void)dealloc
 {
     [[NSNotificationCenter defaultCenter] removeObserver:self];
+    [g_pIMMyself setDelegate:nil];
+    [g_pIMMyself setRelationshipDelegate:nil];
+    [g_pIMMyself setGroupDelegate:nil];
+    [g_pIMMyself setCustomUserInfoDelegate:nil];
 }
 
 - (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
@@ -71,7 +82,7 @@
 {
     [super viewDidLoad];
     // Do any additional setup after loading the view.
-    
+    [[self view] setBackgroundColor:[UIColor whiteColor]];
     [[self navigationController] setNavigationBarHidden:YES];
     
     _tabBarController = [[UITabBarController alloc] init];
@@ -106,16 +117,16 @@
     NSArray *navArray = [NSArray arrayWithObjects:_conversationNav,_contactNav,_aroundNav,_settingNav, nil];
     
     [_tabBarController setViewControllers:navArray];
-}
-
-- (void)viewWillAppear:(BOOL)animated {
-    [super viewWillAppear:animated];
     
     //设置IMMyself 代理
     [g_pIMMyself setDelegate:self];
     [g_pIMMyself setRelationshipDelegate:self];
     [g_pIMMyself setGroupDelegate:self];
     [g_pIMMyself setCustomUserInfoDelegate:self];
+}
+
+- (void)viewWillAppear:(BOOL)animated {
+    [super viewWillAppear:animated];
 }
 
 - (void)didReceiveMemoryWarning
@@ -126,17 +137,21 @@
 
 - (void)logout {
     [_tabBarController setSelectedIndex:0];
-    [self dismissViewControllerAnimated:NO completion:nil];
+    [[NSUserDefaults standardUserDefaults] setObject:nil forKey:IMLoginCustomUserID];
+    [[NSUserDefaults standardUserDefaults] setObject:nil forKey:IMLoginPassword];
+    [[NSUserDefaults standardUserDefaults] synchronize];
+    
+    [self removeFromParentViewController];
+    [[self view] removeFromSuperview];
 }
 
 
 #pragma mark - IMMyself delegate
 
 - (void)didLogoutFor:(NSString *)reason {
-    NSLog(@"%@",[g_pIMMyself customUserID]);
-    if ([[reason uppercaseString] isEqualToString:@"USER LOGOUT"] || [[reason uppercaseString] isEqualToString:@"LOGIN CONFLICT"]) {
+    if ([[reason uppercaseString] isEqualToString:@"USER LOGOUT"] || [[reason uppercaseString] isEqualToString:@"LOGIN CONFLICT"] || [g_pIMMyself customUserID] == nil) {
         if ([[reason uppercaseString] isEqualToString:@"LOGIN CONFLICT"]) {
-            UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"您的账号在别处登录" message:nil delegate:nil cancelButtonTitle:@"确定" otherButtonTitles:nil];
+            UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"你的帐号在别处登陆,请确认是否本人操作" message:nil delegate:nil cancelButtonTitle:@"好" otherButtonTitles:nil];
             
             [alert show];
         }
@@ -144,7 +159,41 @@
         return;
     }
     
-    [g_pIMMyself login];
+    [self trylogin];
+    
+}
+
+- (void)trylogin {
+    NSString *loginCustomUserID = [[NSUserDefaults standardUserDefaults] objectForKey:IMLoginCustomUserID];
+    NSString *loginPassword = [[NSUserDefaults standardUserDefaults] objectForKey:IMLoginPassword];
+    
+    if (![[g_pIMMyself customUserID] isEqualToString:loginCustomUserID]) {
+        /*
+         it is important! if you call method "initWithCustomUserID:appKey:",All IMMyself Delegates will reinit;
+         so if customUserID didn't change,don't call this method;
+        */
+        [g_pIMMyself initWithCustomUserID:loginCustomUserID appKey:IMDeveloper_APPKey];
+    }
+    
+    [g_pIMMyself setPassword:loginPassword];
+    [g_pIMMyself loginWithTimeoutInterval:10 success:^(BOOL autoLogin) {
+        [[NSUserDefaults standardUserDefaults] setObject:[NSDate date] forKey:IMLastLoginTime];
+        [[NSUserDefaults standardUserDefaults] setObject:[g_pIMMyself customUserID] forKey:IMLoginCustomUserID];
+        [[NSUserDefaults standardUserDefaults] setObject:[g_pIMMyself password] forKey:IMLoginPassword];
+        [[NSUserDefaults standardUserDefaults] synchronize];
+    } failure:^(NSString *error) {
+        [self trylogin];
+    }];
+}
+
+- (void)logoutFailedWithError:(NSString *)error {
+    //注销deviceToken 失败也要退回到登陆界面
+    [[NSNotificationCenter defaultCenter] postNotificationName:IMLogoutNotification object:nil];
+    
+}
+
+- (void)loginStatusDidUpdate:(IMMyselfLoginStatus)status {
+    [[NSNotificationCenter defaultCenter] postNotificationName:IMLoginStatusChangedNotification object:nil];
 }
 
 
@@ -160,6 +209,39 @@
 - (void)groupListDidInitialize {
     [[NSNotificationCenter defaultCenter] postNotificationName:IMGroupListDidInitializeNotification object:nil];
 }
+
+- (void)addedToGroup:(NSString *)groupID byUser:(NSString *)customUserID {
+    if ([customUserID isEqualToString:[g_pIMMyself customUserID]]) {
+        return;
+    }
+    [[NSNotificationCenter defaultCenter] postNotificationName:IMReloadGroupListNotification object:nil];
+}
+
+- (void)removedFromGroup:(NSString *)groupID byUser:(NSString *)customUserID {
+    if ([customUserID isEqualToString:[g_pIMMyself customUserID]]) {
+        return;
+    }
+    [[NSNotificationCenter defaultCenter] postNotificationName:IMReloadGroupListNotification object:nil];
+    [[NSNotificationCenter defaultCenter] postNotificationName:IMRemovedGroupNotification(groupID) object:nil];
+}
+
+- (void)group:(NSString *)groupID deletedByUser:(NSString *)customUserID {
+    if ([customUserID isEqualToString:[g_pIMMyself customUserID]]) {
+        return;
+    }
+    
+    [[NSNotificationCenter defaultCenter] postNotificationName:IMReloadGroupListNotification object:nil];
+    [[NSNotificationCenter defaultCenter] postNotificationName:IMDeleteGroupNotification(groupID) object:nil];
+}
+
+- (void)didCreateGroupWithName:(NSString *)groupName groupID:(NSString *)groupID clientActionTime:(UInt32)timeIntervalSince1970 {
+    [[NSNotificationCenter defaultCenter] postNotificationName:IMReloadGroupListNotification object:nil];
+}
+
+- (void)didRemoveGroup:(NSString *)groupID clientActionTime:(UInt32)timeIntervalSince1970 {
+    [[NSNotificationCenter defaultCenter] postNotificationName:IMReloadGroupListNotification object:nil];
+}
+
 
 #pragma mark - IMMyself relationship delegate
 
@@ -180,22 +262,23 @@
 }
 
 - (void)didBuildFriendRelationshipWithUser:(NSString *)customUserID {
-    UIAlertView *alertView = [[UIAlertView alloc] initWithTitle:@"添加好友成功" message:[NSString stringWithFormat:@"你已添加 %@ 为好友", customUserID] delegate:nil cancelButtonTitle:@"确定" otherButtonTitles:nil, nil];
-    
-    [alertView show];
+    _notifyText = @"添加好友成功";
+    _notifyImage = [UIImage imageNamed:@"IM_success_image.png"];
+    [self displayNotifyHUD];
     
     [[NSNotificationCenter defaultCenter] postNotificationName:IMReloadFriendlistNotification object:nil];
 }
 
 - (void)didReceiveRejectFromCustomUserID:(NSString *)customUserID serverSendTime:(UInt32)timeIntervalSince1970 reason:(NSString *)reason {
-    UIAlertView *alertView = [[UIAlertView alloc] initWithTitle:@"温馨提示" message:[NSString stringWithFormat:@"%@ 拒绝加你为好友", customUserID] delegate:nil cancelButtonTitle:@"确定" otherButtonTitles:nil, nil];
-    
-    [alertView show];
+    _notifyText = [NSString stringWithFormat:@"%@拒绝了你的好友请求:%@",customUserID,reason];
+    _notifyImage = [UIImage imageNamed:@"IM_alert_image.png"];
+    [self displayNotifyHUD];
 }
 
 - (void)didBreakUpFriendshipWithCustomUserID:(NSString *)customUserID {
     [[NSNotificationCenter defaultCenter] postNotificationName:IMReloadFriendlistNotification object:nil];
 }
+
 
 #pragma mark - alertview delegate
 
@@ -211,15 +294,57 @@
         case 0:
             break;
         case 1:
-            [g_pIMMyself agreeToFriendRequestFromUser:customUserID];
+        {
+            [g_pIMMyself agreeToFriendRequestFromUser:customUserID success:^{
+                
+            } failure:^(NSString *error) {
+                _notifyText = @"添加好友失败";
+                _notifyImage = [UIImage imageNamed:@"IM_failed_image.png"];
+                [self displayNotifyHUD];
+            }];
+        }
             break;
         case 2:
-            [g_pIMMyself rejectToFriendRequestFromUser:customUserID reason:@""];
+        {
+            [g_pIMMyself rejectToFriendRequestFromUser:customUserID reason:@"" success:^{
+                
+            } failure:^(NSString *error) {
+                _notifyText = @"拒绝失败";
+                _notifyImage = [UIImage imageNamed:@"IM_failed_image.png"];
+                [self displayNotifyHUD];
+            }];
+        }
             break;
         default:
             break;
     }
 }
+
+
+#pragma mark - notify hud
+
+- (BDKNotifyHUD *)notify {
+    if (_notify != nil){
+        return _notify;
+    }
+    
+    _notify = [BDKNotifyHUD notifyHUDWithImage:_notifyImage text:_notifyText];
+    [_notify setCenter:CGPointMake(_tabBarController.view.center.x, _tabBarController.view.center.y - 20)];
+    return _notify;
+}
+
+- (void)displayNotifyHUD {
+    if (_notify) {
+        [_notify removeFromSuperview];
+        _notify = nil;
+    }
+    
+    [_tabBarController.view addSubview:[self notify]];
+    [[self notify] presentWithDuration:1.0f speed:0.5f inView:_tabBarController.view completion:^{
+    [[self notify] removeFromSuperview];
+    }];
+}
+
 /*
 #pragma mark - Navigation
 

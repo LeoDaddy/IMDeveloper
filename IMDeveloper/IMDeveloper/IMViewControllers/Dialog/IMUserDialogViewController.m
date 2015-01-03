@@ -10,6 +10,9 @@
 #import "IMDefine.h"
 #import "IMUserInformationViewController.h"
 
+//Third party
+#import "BDKNotifyHUD.h"
+
 //IMSDK Headers
 #import "IMChatView.h"
 
@@ -22,6 +25,10 @@
 
 @implementation IMUserDialogViewController {
     UIBarButtonItem *_rightBarButtonItem;
+    
+    BDKNotifyHUD *_notify;
+    NSString *_notifyText;
+    UIImage *_notifyImage;
 }
 
 - (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
@@ -49,7 +56,7 @@
     }
     [[self view] setBackgroundColor:[UIColor whiteColor]];
     
-    [self setTitle:_customUserID];
+    [_titleLabel setText:_customUserID];
     
     CGFloat height = 480 - 64;
     
@@ -87,13 +94,6 @@
     }
 }
 
-- (void)onHeadViewTaped:(NSString *)customUserID {
-    IMUserInformationViewController *controller = [[IMUserInformationViewController alloc] init];
-    
-    [controller setCustomUserID:_customUserID];
-    [[self navigationController] pushViewController:controller animated:YES];
-}
-
 - (void)rightBarButtonItemClick:(id)sender {
     IMUserInformationViewController *controller = [[IMUserInformationViewController alloc] init];
     
@@ -102,6 +102,64 @@
     [[self navigationController] pushViewController:controller animated:YES];
 }
 
+
+#pragma mark - IMChatViewDelegate
+
+- (void)onHeadViewTaped:(NSString *)customUserID {
+    IMUserInformationViewController *controller = [[IMUserInformationViewController alloc] init];
+    
+    [controller setCustomUserID:customUserID];
+    [[self navigationController] pushViewController:controller animated:YES];
+}
+
+- (void)recordAudioError:(NSString *)error {
+    if ([error isEqualToString:@"the recording time is too short"]) {
+        _notifyText = @"说话时间太短";
+        _notifyImage = [UIImage imageNamed:@"IM_alert_image.png"];
+        [self displayNotifyHUD];
+    } else if ([error isEqualToString:@"The microphone is prohibited"]) {
+        UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"无法录音" message:@"请在iPhone的\"设置-隐私-麦克风\"选项中，允许爱萌开发者访问你的手机麦克风" delegate:nil cancelButtonTitle:@"好" otherButtonTitles:nil];
+        
+        [alert show];
+    }
+    
+}
+
+- (void)playAudioError:(NSString *)error {
+    if ([error isEqualToString:@"speech dysfunction"]) {
+        error = @"语音播放功能障碍";
+    } else  {
+        error = @"播放失败";
+    }
+    
+    _notifyText = error;
+    _notifyImage = [UIImage imageNamed:@"IM_alert_image.png"];
+    [self displayNotifyHUD];
+}
+
+
+#pragma mark - notify hud
+
+- (BDKNotifyHUD *)notify {
+    if (_notify != nil) {
+        return _notify;
+    }
+    _notify = [BDKNotifyHUD notifyHUDWithImage:_notifyImage text:_notifyText];
+    [_notify setCenter:CGPointMake(self.tabBarController.view.center.x, self.tabBarController.view.center.y - 20)];
+    return _notify;
+}
+
+- (void)displayNotifyHUD {
+    if (_notify) {
+        [_notify removeFromSuperview];
+        _notify = nil;
+    }
+    
+    [self.tabBarController.view addSubview:[self notify]];
+    [[self notify] presentWithDuration:1.0f speed:0.5f inView:self.tabBarController.view completion:^{
+        [[self notify] removeFromSuperview];
+    }];
+}
 
 /*
 #pragma mark - Navigation

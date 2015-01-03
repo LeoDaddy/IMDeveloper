@@ -14,5 +14,6 @@
 @property (nonatomic, copy) NSString *customUserID;
 @property (nonatomic, copy) NSString *signature;
 @property (nonatomic, copy) NSString *distance;
+@property (nonatomic, strong) UILabel *signatureLabel;
 
 @end

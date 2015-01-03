@@ -17,7 +17,6 @@
     UIImageView *_headView;
     UILabel *_customUserIDLabel;
     UILabel *_distanceLabel;
-    UILabel *_signatureLabel;
 }
 
 - (void)dealloc
@@ -51,7 +50,7 @@
         [_signatureLabel setClipsToBounds: YES];
         [self addSubview:_signatureLabel];
         
-        _customUserIDLabel = [[UILabel alloc] initWithFrame:CGRectMake(_headView.right + 10, 5, frame.size.width - _headView.width - _signatureLabel.width - 40, frame.size.height / 2 - 5)];
+        _customUserIDLabel = [[UILabel alloc] initWithFrame:CGRectMake(_headView.right + 10, 5, frame.size.width - _headView.width - _signatureLabel.width - 60, frame.size.height / 2 - 5)];
         
         [_customUserIDLabel setBackgroundColor:[UIColor clearColor]];
         [_customUserIDLabel setFont:[UIFont boldSystemFontOfSize:15.0f]];
@@ -98,7 +97,20 @@
     _signature = signature;
     
     [_signatureLabel setText:_signature];
-    [self setNeedsDisplay];
+    
+    CGSize size;
+    
+    if ([[[UIDevice currentDevice] systemVersion] floatValue] < 7.0) {
+        size = [_signature sizeWithFont:[UIFont systemFontOfSize:14.0f] constrainedToSize:CGSizeMake(80, self.frame.size.height - 20) lineBreakMode:NSLineBreakByCharWrapping];
+    } else {
+        size = [_signature boundingRectWithSize:CGSizeMake(80, self.frame.size.height - 20) options:NSStringDrawingUsesLineFragmentOrigin attributes:@{NSFontAttributeName: [UIFont systemFontOfSize:14.0f]} context:nil].size;
+        
+    }
+    
+    [_signatureLabel setFrame:CGRectMake(self.frame.size.width - size.width - 12, (self.frame.size.height - size.height) / 2 - 2 , size.width + 4, size.height + 4)];
+    if ([_signature length] > 0) {
+        [_signatureLabel setBackgroundColor:[UIColor lightGrayColor]];
+    }
 }
 
 // Only override drawRect: if you perform custom drawing.
@@ -106,19 +118,7 @@
 - (void)drawRect:(CGRect)rect
 {
     // Drawing code
-    CGSize size;
-    
-    if ([[[UIDevice currentDevice] systemVersion] floatValue] < 7.0) {
-        size = [_signature sizeWithFont:[UIFont systemFontOfSize:14.0f] constrainedToSize:CGSizeMake(80, self.frame.size.height - 20) lineBreakMode:NSLineBreakByCharWrapping];
-    } else {
-        size = [_signature boundingRectWithSize:CGSizeMake(80, self.frame.size.height - 20) options:NSStringDrawingUsesLineFragmentOrigin attributes:@{NSFontAttributeName: [UIFont systemFontOfSize:14.0f]} context:nil].size;
-    
-    }
-    
-    [_signatureLabel setFrame:CGRectMake(self.frame.size.width - size.width - 12, (self.frame.size.height - size.height) / 2 - 2 , size.width + 4, size.height + 4)];
-    if ([_signature length] > 0) {
-        [_signatureLabel setBackgroundColor:[UIColor lightGrayColor]];
-    }
+   
     
 }
 

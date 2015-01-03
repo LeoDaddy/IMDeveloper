@@ -16,7 +16,7 @@ typedef NS_ENUM(NSInteger, IMMyselfLoginStatus) {
     IMMyselfLoginStatusNone = 0,        // 未登录
     IMMyselfLoginStatusLogining = 1,    // 用户发起登录
     IMMyselfLoginStatusRelogining = 2,  // 断线重连
-    IMMyselfLoginStatusLogouting = 3,   // 未登录
+    IMMyselfLoginStatusLogouting = 3,   // 用户发起注销
     IMMyselfLoginStatusLogined = 11,    // 已登录
 };
 
@@ -62,6 +62,8 @@ typedef NS_ENUM(NSInteger, IMMyselfLoginStatus) {
  @param error 注销失败的错误信息
  */
 - (void)logoutFailedWithError:(NSString *)error;
+
+- (void)loginStatusDidUpdate:(IMMyselfLoginStatus)status;
 
 
 #pragma mark 发送文本消息回调
@@ -267,6 +269,7 @@ typedef NS_ENUM(NSInteger, IMMyselfLoginStatus) {
 - (UInt32)sendText:(NSString *)text toUser:(NSString *)customUserID
            success:(void (^)())success
            failure:(void (^)(NSString *error))failure;
+
 @end
 
 #define g_pIMMyself [IMMyself sharedInstance]

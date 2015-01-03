@@ -11,12 +11,16 @@
 #import "IMFriendRequestViewController.h"
 #import "IMUserDialogViewController.h"
 
+//Third Party
+#import "BDKNotifyHUD.h"
+
 //IMSDK Headers
 #import "IMSDK+MainPhoto.h"
 #import "IMSDK+CustomUserInfo.h"
 #import "IMMyself+Relationship.h"
+#import "IMMyself+RecentContacts.h"
 
-@interface IMUserInformationViewController () <UITableViewDataSource, UITableViewDelegate>
+@interface IMUserInformationViewController () <UITableViewDataSource, UITableViewDelegate, UIActionSheetDelegate>
 
 // load head image
 - (void)loadHeadImage;
@@ -37,10 +41,17 @@
     UILabel *_sexLabel;
     
     UIView *_tableFooterView;
-    UIButton *_blackListBtn;
     UIButton *_removeBlacklistBtn;
     UIButton *_chatBtn;
     UIButton *_sendFriendsRequestBtn;
+    UIButton *_removeFriendsBtn;
+    
+    UIBarButtonItem *_rightBarButtonItem;
+    
+    //third party
+    BDKNotifyHUD *_notify;
+    NSString *_notifyText;
+    UIImage *_notifyImage;
 }
 
 - (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
@@ -48,6 +59,7 @@
     self = [super initWithNibName:nibNameOrNil bundle:nibBundleOrNil];
     if (self) {
         // Custom initialization
+        
         [_titleLabel setText:@"详细资料"];
         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(loadData) name:IMRelationshipDidInitializeNotification object:nil];
         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(loadData) name:IMReloadFriendlistNotification object:nil];
@@ -105,6 +117,7 @@
     [[_sendFriendsRequestBtn layer] setCornerRadius:10.0f];
     [_sendFriendsRequestBtn setBackgroundColor:RGB(41, 140, 38)];
     [_sendFriendsRequestBtn setTitle:@"加为好友" forState:UIControlStateNormal];
+    [_sendFriendsRequestBtn setAlpha:0.8];
     [_tableFooterView addSubview:_sendFriendsRequestBtn];
     
     [_sendFriendsRequestBtn addTarget:self action:@selector(buttonClick:) forControlEvents:UIControlEventTouchUpInside];
@@ -118,23 +131,29 @@
     
     [_chatBtn addTarget:self action:@selector(buttonClick:) forControlEvents:UIControlEventTouchUpInside];
 
-    _blackListBtn = [[UIButton alloc] initWithFrame:CGRectMake(40, 120, 240, 40)];
+    _removeFriendsBtn = [[UIButton alloc] initWithFrame:CGRectMake(40, 120, 240, 40)];
     
-    [[_blackListBtn layer] setCornerRadius:10.0f];
-    [_blackListBtn setBackgroundColor:RGB(210, 0, 8)];
-    [_blackListBtn setTitle:@"加入黑名单" forState:UIControlStateNormal];
-    [_tableFooterView addSubview:_blackListBtn];
+    [[_removeFriendsBtn layer] setCornerRadius:10.0f];
+    [_removeFriendsBtn setBackgroundColor:RGB(244, 42, 41)];
+    [_removeFriendsBtn setTitle:@"删除好友" forState:UIControlStateNormal];
+    [_removeFriendsBtn setAlpha:0.8];
+    [_tableFooterView addSubview:_removeFriendsBtn];
     
-    [_blackListBtn addTarget:self action:@selector(buttonClick:) forControlEvents:UIControlEventTouchUpInside];
+    [_removeFriendsBtn addTarget:self action:@selector(buttonClick:) forControlEvents:UIControlEventTouchUpInside];
     
     _removeBlacklistBtn = [[UIButton alloc] initWithFrame:CGRectMake(40, 120, 240, 40)];
     
     [[_removeBlacklistBtn layer] setCornerRadius:10.0f];
-    [_removeBlacklistBtn setBackgroundColor:RGB(210, 0, 8)];
+    [_removeBlacklistBtn setBackgroundColor:RGB(244, 42, 41)];
     [_removeBlacklistBtn setTitle:@"从黑名单移除" forState:UIControlStateNormal];
+    [_removeBlacklistBtn setAlpha:0.8];
     [_tableFooterView addSubview:_removeBlacklistBtn];
     
     [_removeBlacklistBtn addTarget:self action:@selector(buttonClick:) forControlEvents:UIControlEventTouchUpInside];
+    
+    _rightBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:@"更多" style:UIBarButtonItemStylePlain target:self action:@selector(rightBarButtonItenClick:)];
+    
+    [[self navigationItem] setRightBarButtonItem:_rightBarButtonItem];
     
     [self loadHeadImage];
     [self loadCustomUserInfomation];
@@ -148,26 +167,55 @@
     // Dispose of any resources that can be recreated.
 }
 
+- (void)rightBarButtonItenClick:(id)sender {
+    if (sender != _rightBarButtonItem) {
+        return;
+    }
+    
+    UIActionSheet *actionSheet = [[UIActionSheet alloc] initWithTitle:nil delegate:self cancelButtonTitle:@"取消" destructiveButtonTitle:@"加入黑名单" otherButtonTitles:nil];
+    
+    [actionSheet setActionSheetStyle:UIActionSheetStyleAutomatic];
+    [actionSheet showFromTabBar:[self tabBarController].tabBar];
+    
+}
+
 - (void)loadHeadImage {
     UIImage *image = [g_pIMSDK mainPhotoOfUser:_customUserID];
     
     if (image == nil) {
         [_headView setImage:[UIImage imageNamed:@"IM_head_default.png"]];
-        
-        [g_pIMSDK requestMainPhotoOfUser:_customUserID success:^(UIImage *mainPhoto) {
-            if (mainPhoto) {
-                [_headView setImage:mainPhoto];
-                [[NSNotificationCenter defaultCenter] postNotificationName:IMReloadMainPhotoNotification(_customUserID) object:nil];
-            }
-        } failure:^(NSString *error) {
-            NSLog(@"load head image failed for %@",error);
-        }];
     } else {
         [_headView setImage:image];
     }
+    
+    [g_pIMSDK requestMainPhotoOfUser:_customUserID success:^(UIImage *mainPhoto) {
+        if (mainPhoto) {
+            [_headView setImage:mainPhoto];
+            [[NSNotificationCenter defaultCenter] postNotificationName:IMReloadMainPhotoNotification(_customUserID) object:nil];
+        }
+    } failure:^(NSString *error) {
+        NSLog(@"load head image failed for %@",error);
+    }];
 }
 
 - (void)loadCustomUserInfomation {
+    // firstly, load local custom userinfo
+    NSString *userInfo = [g_pIMSDK customUserInfoWithCustomUserID:_customUserID];
+    
+    NSArray *array = [userInfo componentsSeparatedByString:@"\n"];
+    
+    if ([array count] > 0) {
+        NSString *sex = [array objectAtIndex:0];
+        
+        if (![sex isEqualToString:@"男"] && ![sex isEqualToString:@"女"] ) {
+            sex = @"男";
+        }
+        [_sexLabel setText:sex];
+    }
+    
+    [_tableView reloadData];
+    
+    //secondly, request server custom userinfo
     [g_pIMSDK requestCustomUserInfoWithCustomUserID:_customUserID success:^(NSString *customUserInfo) {
         if (customUserInfo == nil) {
             return ;
@@ -194,22 +242,22 @@
 - (void)loadUserRelations {
     if ([[g_pIMMyself customUserID] isEqualToString:_customUserID]) {
         [_chatBtn setHidden:NO];
-        [_blackListBtn setHidden:YES];
+        [_removeFriendsBtn setHidden:YES];
         [_sendFriendsRequestBtn setHidden:YES];
         [_removeBlacklistBtn setHidden:YES];
     } else if ([g_pIMMyself isMyFriend:_customUserID]) {
         [_chatBtn setHidden:NO];
-        [_blackListBtn setHidden:NO];
+        [_removeFriendsBtn setHidden:NO];
         [_sendFriendsRequestBtn setHidden:YES];
         [_removeBlacklistBtn setHidden:YES];
     } else if ([g_pIMMyself isMyBlacklistUser:_customUserID]) {
         [_chatBtn setHidden:YES];
-        [_blackListBtn setHidden:YES];
+        [_removeFriendsBtn setHidden:YES];
         [_sendFriendsRequestBtn setHidden:YES];
         [_removeBlacklistBtn setHidden:NO];
     } else {
         [_chatBtn setHidden:YES];
-        [_blackListBtn setHidden:NO];
+        [_removeFriendsBtn setHidden:YES];
         [_sendFriendsRequestBtn setHidden:NO];
         [_removeBlacklistBtn setHidden:YES];
     }
@@ -235,30 +283,66 @@
         [controller setCustomUserID:_customUserID];
         [[self navigationController] pushViewController:controller animated:YES];
         
-    } else if (sender == _blackListBtn) {
-        //move to blacklist
-        [g_pIMMyself moveToBlacklist:_customUserID success:^{
+    } else if (sender == _removeFriendsBtn) {
+        __block BOOL fromUserDialogView = _fromUserDialogView;
+        
+        [g_pIMMyself removeFromFriendsList:_customUserID success:^{
             [self loadUserRelations];
+            [g_pIMMyself removeRecentContact:_customUserID];
             
-            [[NSNotificationCenter defaultCenter] postNotificationName:IMReloadBlacklistNotification object:nil];
+            if (fromUserDialogView) {
+                [self displayNotifyHUD];
+                [[self navigationController] popToRootViewControllerAnimated:YES];
+            }
         } failure:^(NSString *error) {
-            UIAlertView *alertView = [[UIAlertView alloc] initWithTitle:@"加入黑名单失败" message:error delegate:nil cancelButtonTitle:@"确定" otherButtonTitles:nil];
-            
-            [alertView show];
+            _notifyText = @"删除好友失败";
+            _notifyImage = [UIImage imageNamed:@"IM_failed_image.png"];
+            [self displayNotifyHUD];
         }];
         
     } else if (sender == _removeBlacklistBtn) {
         //remove from blacklist
         [g_pIMMyself removeUserFromBlacklist:_customUserID success:^{
             [self loadUserRelations];
+            [g_pIMMyself removeRecentContact:_customUserID];
             
             [[NSNotificationCenter defaultCenter] postNotificationName:IMReloadBlacklistNotification object:nil];
         } failure:^(NSString *error) {
-            UIAlertView *alertView = [[UIAlertView alloc] initWithTitle:@"移除黑名单失败" message:error delegate:nil cancelButtonTitle:@"确定" otherButtonTitles:nil];
-            
-            [alertView show];
+            _notifyText = @"移除黑名单失败";
+            _notifyImage = [UIImage imageNamed:@"IM_failed_image.png"];
+            [self displayNotifyHUD];
         }];
         
+    }
+}
+
+
+#pragma mark - actionsheet
+
+- (void)actionSheet:(UIActionSheet *)actionSheet clickedButtonAtIndex:(NSInteger)buttonIndex {
+    if (buttonIndex == 0) {
+        //move to blacklist
+        [g_pIMMyself moveToBlacklist:_customUserID success:^{
+            [self loadUserRelations];
+            __block BOOL fromUserDialogView = _fromUserDialogView;
+            
+            [[NSNotificationCenter defaultCenter] postNotificationName:IMReloadBlacklistNotification object:nil];
+            if (fromUserDialogView) {
+                [self displayNotifyHUD];
+                [[self navigationController] popToRootViewControllerAnimated:YES];
+            }
+        } failure:^(NSString *error) {
+            if ([error isEqualToString:@"Already in Blacklist"]) {
+                error = @"该用户已经在黑名单中";
+            } else {
+                error = @"加入黑名单失败";
+            }
+            
+            _notifyText = error;
+            _notifyImage = [UIImage imageNamed:@"IM_failed_image.png"];
+            [self displayNotifyHUD];
+
+        }];
     }
 }
 
@@ -315,6 +399,31 @@
 - (void)loadData {
     [self loadUserRelations];
     [_tableView reloadData];
+}
+
+
+#pragma mark - notify hud
+
+- (BDKNotifyHUD *)notify {
+    if (_notify != nil){
+        return _notify;
+    }
+    
+    _notify = [BDKNotifyHUD notifyHUDWithImage:_notifyImage text:_notifyText];
+    [_notify setCenter:CGPointMake(self.tabBarController.view.center.x, self.tabBarController.view.center.y - 20)];
+    return _notify;
+}
+
+- (void)displayNotifyHUD {
+    if (_notify) {
+        [_notify removeFromSuperview];
+        _notify = nil;
+    }
+    
+    [self.tabBarController.view addSubview:[self notify]];
+    [[self notify] presentWithDuration:1.0f speed:0.5f inView:self.tabBarController.view completion:^{
+        [[self notify] removeFromSuperview];
+    }];
 }
 /*
 #pragma mark - Navigation

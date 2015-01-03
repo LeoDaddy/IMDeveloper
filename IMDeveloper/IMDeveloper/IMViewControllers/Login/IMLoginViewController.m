@@ -13,6 +13,7 @@
 
 //third-party
 #import "SFCountdownView.h"
+#import "BDKNotifyHUD.h"
 
 //IMSDK Header
 #import "IMMyself.h"
@@ -36,6 +37,10 @@
     
     //third-party
     SFCountdownView *_countdownView;
+    
+    BDKNotifyHUD *_notify;
+    NSString *_notifyText;
+    UIImage *_notifyImage;
 }
 
 - (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
@@ -58,7 +63,7 @@
     
     CGRect rect = [[self view] bounds];
     
-    _tableview = [[UITableView alloc] initWithFrame:CGRectMake(0, rect.size.height / 2 - 44, 320, 88) style:UITableViewStyleGrouped];
+    _tableview = [[UITableView alloc] initWithFrame:CGRectMake(0, rect.size.height / 2 - 44, 320, 88) style:UITableViewStylePlain];
     
     [_tableview setSeparatorStyle:UITableViewCellSeparatorStyleSingleLine];
     [_tableview setDataSource:self];
@@ -123,7 +128,18 @@
     
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardWillShow:) name:UIKeyboardWillShowNotification object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardWillHide:) name:UIKeyboardWillHideNotification object:nil];
-  
+ 
+    NSString *loginCustomUserID = [[NSUserDefaults standardUserDefaults] objectForKey:IMLoginCustomUserID];
+    NSString *loginPassword = [[NSUserDefaults standardUserDefaults] objectForKey:IMLoginPassword];
+    
+    if (loginCustomUserID && loginPassword) {
+        IMRootViewController *controller = [[IMRootViewController alloc] init];
+        
+        [self addChildViewController:controller];
+        [[self view] addSubview:controller.view];
+    }
+    
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(logout) name:IMLogoutNotification object:nil];
 }
 
 - (void)viewWillAppear:(BOOL)animated {
@@ -140,6 +156,7 @@
     }
 }
 
+
 - (void)didReceiveMemoryWarning
 {
     [super didReceiveMemoryWarning];
@@ -151,14 +168,16 @@
         return;
     }
     
+    [[self view] endEditing:YES];
+    
     NSString *customUserID = [_userNameField text];
     NSString *password = [_passwordField text];
     
     if ([customUserID length] > 0) {
         if ([password length] == 0) {
-            UIAlertView *alertView = [[UIAlertView alloc] initWithTitle:@"温馨提示" message:@"请输入密码" delegate:nil cancelButtonTitle:@"确定" otherButtonTitles:nil, nil];
-            
-            [alertView show];
+            _notifyText = @"请输入密码";
+            _notifyImage = [UIImage imageNamed:@"IM_alert_image.png"];
+            [self displayNotifyHUD];
             return;
         }
         
@@ -168,10 +187,18 @@
         [g_pIMMyself setAutoLogin:NO];
         [g_pIMMyself loginWithTimeoutInterval:10
                                       success:^(BOOL autoLogin) {
-                                          NSLog(@"login successed");
                                           IMRootViewController *controller = [[IMRootViewController alloc] init];
                                           
-                                          [self presentViewController:controller animated:NO completion:NULL];
+                                          [self addChildViewController:controller];
+                                          [[self view] addSubview:controller.view];
+                                          
+                                          [[NSUserDefaults standardUserDefaults] setObject:[NSDate date] forKey:IMLastLoginTime];
+                                          [[NSUserDefaults standardUserDefaults] setObject:[g_pIMMyself customUserID] forKey:IMLoginCustomUserID];
+                                          [[NSUserDefaults standardUserDefaults] setObject:[g_pIMMyself password] forKey:IMLoginPassword];
+                                          [[NSUserDefaults standardUserDefaults] synchronize];
+                                          
+                                          //应用角标清零
+                                          [[UIApplication sharedApplication] setApplicationIconBadgeNumber:0];
                                           
                                           [_countdownView removeFromSuperview];
                                           _countdownView = nil;
@@ -180,7 +207,6 @@
                                           [[self view] endEditing:YES];
                                       }
                                       failure:^(NSString *error) {
-                                          NSLog(@"login failed for %@",error);
                                           
                                           if ([error isEqualToString:@"Wrong Password"]) {
                                               error = @"密码错误,请重新输入";
@@ -188,6 +214,8 @@
                                               error = @"用户名只能由字母、数字、下划线、@符或点组成,长度不能超过32位，也不能少于2位";
                                           } else if ([error isEqualToString:@"Password length should between 2 to 32 characters"]) {
                                               error = @"密码长度不能超过32位，也不能少于2位";
+                                          } else {
+                                              error = @"请检查网络是否可用";
                                           }
                                           
                                           [self performSelector:@selector(loginError:) withObject:error afterDelay:1.0];
@@ -201,16 +229,21 @@
         [_countdownView start];
         [[self view] addSubview:_countdownView];
     } else {
-        UIAlertView *alertView = [[UIAlertView alloc] initWithTitle:@"温馨提示" message:@"请输入用户名" delegate:nil cancelButtonTitle:@"确定" otherButtonTitles:nil, nil];
-        
-        [alertView show];
+        _notifyText = @"请输入用户名";
+        _notifyImage = [UIImage imageNamed:@"IM_alert_image.png"];
+        [self displayNotifyHUD];
     }
 }
 
-- (void)loginError:(NSString *)error {
-    UIAlertView *alertView = [[UIAlertView alloc] initWithTitle:@"登录失败" message:error delegate:nil cancelButtonTitle:@"确定" otherButtonTitles:nil];
+- (void)logout {
     
-    [alertView show];
+}
+
+- (void)loginError:(NSString *)error {
+    
+    _notifyText = error;
+    _notifyImage = [UIImage imageNamed:@"IM_failed_image.png"];
+    [self displayNotifyHUD];
     
     [_countdownView removeFromSuperview];
     _countdownView = nil;
@@ -270,9 +303,9 @@
     
     if (textField == _userNameField) {
         if ([[textField text] length] + [string length] > 32 ) {
-            UIAlertView *alertView = [[UIAlertView alloc] initWithTitle:@"温馨提示" message:@"用户名不能超过32个字节" delegate:nil cancelButtonTitle:@"确定" otherButtonTitles:nil, nil];
-            
-            [alertView show];
+            _notifyText = @"用户名不能超过32个字符";
+            _notifyImage = [UIImage imageNamed:@"IM_alert_image.png"];
+            [self displayNotifyHUD];
             
             return NO;
         }
@@ -291,10 +324,10 @@
     }
     
     if (textField == _passwordField) {
-        if ([[textField text] length] + [string length] > 16 ) {
-            UIAlertView *alertView = [[UIAlertView alloc] initWithTitle:@"温馨提示" message:@"密码不能超过16位" delegate:nil cancelButtonTitle:@"确定" otherButtonTitles:nil, nil];
-            
-            [alertView show];
+        if ([[textField text] length] + [string length] > 32 ) {
+            _notifyText = @"密码不能超过32个字符";
+            _notifyImage = [UIImage imageNamed:@"IM_alert_image.png"];
+            [self displayNotifyHUD];
             
             return NO;
         }
@@ -306,6 +339,10 @@
 #pragma mark - keyboard notifications
 
 - (void)keyboardWillShow:(NSNotification *)notification {
+    if ([[self childViewControllers] count] > 0) {
+        return;
+    }
+    
     NSDictionary *userInfo = [notification userInfo];
     
     // Get the origin of the keyboard when it's displayed.
@@ -322,7 +359,7 @@
     
     CGRect frame = self.view.frame;
     [UIView beginAnimations:nil context:nil];
-    [UIView setAnimationDuration:animationDuration];
+    [UIView setAnimationDuration:0.25];
     frame.origin.y =  -80;
     if ([UIScreen mainScreen].bounds.size.height == 480) {
         frame.origin.y = -100;
@@ -332,6 +369,10 @@
 }
 
 - (void)keyboardWillHide:(NSNotification *)notification {
+    if ([[self childViewControllers] count] > 0) {
+        return;
+    }
+    
     NSDictionary *userInfo = [notification userInfo];
     
     NSValue* aValue = [userInfo objectForKey:UIKeyboardFrameEndUserInfoKey];
@@ -345,7 +386,7 @@
     
     CGRect frame = self.view.frame;
     [UIView beginAnimations:nil context:nil];
-    [UIView setAnimationDuration:animationDuration];
+    [UIView setAnimationDuration:0.25];
 #if __IPHONE_OS_VERSION_MAX_ALLOWED >= 70000
     frame.origin.y = 0;
 #elif __IPHONE_OS_VERSION_MAX_ALLOWED < 70000
@@ -353,5 +394,30 @@
 #endif
     self.view.frame = frame;
     [UIView commitAnimations];
+}
+
+
+#pragma mark - notify hud
+
+- (BDKNotifyHUD *)notify {
+    if (_notify != nil){
+        return _notify;
+    }
+    
+    _notify = [BDKNotifyHUD notifyHUDWithImage:_notifyImage text:_notifyText];
+    [_notify setCenter:CGPointMake(self.view.center.x, self.view.center.y - 20)];
+    return _notify;
+}
+
+- (void)displayNotifyHUD {
+    if (_notify) {
+        [_notify removeFromSuperview];
+        _notify = nil;
+    }
+    
+    [self.view addSubview:[self notify]];
+    [[self notify] presentWithDuration:1.0f speed:0.5f inView:self.view completion:^{
+        [[self notify] removeFromSuperview];
+    }];
 }
 @end

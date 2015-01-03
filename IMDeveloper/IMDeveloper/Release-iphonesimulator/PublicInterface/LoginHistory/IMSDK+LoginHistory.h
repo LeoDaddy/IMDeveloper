@@ -12,8 +12,19 @@
 
 @property (nonatomic, assign)BOOL saveHistory;
 
+/**
+ 登录用户名的集合
+ */
 - (NSArray *)loginHistories;
+
+/**
+ 移除某个用户的登录历史
+ */
 - (void)removeLoginHistoryWithCustomUserID:(NSString *)customUserID;
+
+/**
+ 删除所有登录历史
+ */
 - (void)removeLoginHistories;
 
 @end

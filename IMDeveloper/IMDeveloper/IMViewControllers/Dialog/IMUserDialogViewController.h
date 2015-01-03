@@ -6,9 +6,9 @@
 //  Copyright (c) 2014年 IMSDK. All rights reserved.
 //
 
-#import <UIKit/UIKit.h>
+#import "IMBaseViewController.h"
 
-@interface IMUserDialogViewController : UIViewController
+@interface IMUserDialogViewController : IMBaseViewController
 
 @property (nonatomic, copy) NSString *customUserID;
 
