@@ -10,11 +10,11 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "IMDeveloper/IMViewControllers/Contact/IMContactViewController.m"
-            timestampString = "441951070.495961"
+            timestampString = "441974433.532265"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "457"
-            endingLineNumber = "457"
+            startingLineNumber = "456"
+            endingLineNumber = "456"
             landmarkName = "-reloadData"
             landmarkType = "5">
          </BreakpointContent>

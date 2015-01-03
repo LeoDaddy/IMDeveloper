@@ -77,7 +77,7 @@
     [view setInputViewTintColor:RGB(245, 245, 245)];
     [view setSenderTintColor:RGB(44, 164, 232)];
     [view setReceiverTintColor:[UIColor lightGrayColor]];
-    [view setParentController:self];
+//    [view setParentController:self];
     [view setDelegate:self];
     [[self view] addSubview:view];
 }
