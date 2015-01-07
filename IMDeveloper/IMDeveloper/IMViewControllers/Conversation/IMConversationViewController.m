@@ -31,6 +31,7 @@
     
     NSString *_selectedCustomUserID;
     BOOL _showGroupMessage;
+    BOOL _alertClicked;
 }
 
 - (void)dealloc
@@ -191,13 +192,24 @@
 #pragma mark - alertView delegate
 
 - (void)alertView:(UIAlertView *)alertView clickedButtonAtIndex:(NSInteger)buttonIndex {
+    if (_alertClicked) {
+        return;
+    }
+    
     if ([alertView tag] == 1000) {
+        
+        _alertClicked = YES;
+        
         IMUserInformationViewController *controller = [[IMUserInformationViewController alloc] init];
         
         [controller setCustomUserID:_selectedCustomUserID];
         [controller setHidesBottomBarWhenPushed:YES];
         [[self navigationController] pushViewController:controller animated:YES];
     }
+}
+
+- (void)alertView:(UIAlertView *)alertView didDismissWithButtonIndex:(NSInteger)buttonIndex {
+    _alertClicked = NO;
 }
 /*
 #pragma mark - Navigation
