@@ -32,8 +32,15 @@
     self.window.backgroundColor = [UIColor whiteColor];
     [self.window makeKeyAndVisible];
     
-    if ([[UIApplication sharedApplication] respondsToSelector:@selector(registerForRemoteNotifications)]) {
-        [[UIApplication sharedApplication] performSelector:@selector(registerForRemoteNotifications)];
+    if ([[[UIDevice currentDevice] systemVersion] floatValue] >= 8)
+    {
+        [[UIApplication sharedApplication] registerForRemoteNotifications];
+        
+        UIUserNotificationType types = UIUserNotificationTypeBadge                                                                                                                      | UIUserNotificationTypeSound | UIUserNotificationTypeAlert ;
+        
+        UIUserNotificationSettings * setting =  [UIUserNotificationSettings settingsForTypes:types categories:nil];
+        [[UIApplication sharedApplication] registerUserNotificationSettings:setting];
+         
     } else {
         [[UIApplication sharedApplication] registerForRemoteNotificationTypes:UIRemoteNotificationTypeAlert | UIRemoteNotificationTypeBadge | UIRemoteNotificationTypeSound];
     }

@@ -98,6 +98,8 @@
 - (void)setGroupInfo:(IMGroupInfo *)groupInfo {
     _groupInfo = groupInfo;
     [_groupInfo setDelegate:self];
+    
+    
 }
 
 #pragma mark - IMGroupInfoUpdateDelegate
@@ -105,6 +107,8 @@
 - (void)didUpdateGroupInfo:(IMGroupInfo *)groupInfo {
     _groupInfo = groupInfo;
     
+    [_titleLabel setText:[NSString stringWithFormat:@"群信息(%lu)",(unsigned long)[[_groupInfo memberList] count]]];
+
     [_tableView reloadData];
 }
 
@@ -127,6 +131,9 @@
         [[self navigationController] popToRootViewControllerAnimated:YES];
         return;
     }
+    
+    [_titleLabel setText:[NSString stringWithFormat:@"群信息(%lu)",(unsigned long)[[_groupInfo memberList] count]]];
+
     [_tableView reloadData];
 }
 
@@ -367,7 +374,7 @@
     }
     
     [g_pIMMyself addMember:customUserID toGroup:[_groupInfo groupID] success:^{
-        [_titleLabel setText:[NSString stringWithFormat:@"群信息(%lu)",[[_groupInfo memberList] count]]];
+        [_titleLabel setText:[NSString stringWithFormat:@"群信息(%lu)",(unsigned long)[[_groupInfo memberList] count]]];
         [_tableView reloadData];
     } failure:^(NSString *error) {
         _notifyText = @"添加群成员失败";
@@ -393,6 +400,7 @@
                         return ;
                     }
                 }
+                [[NSNotificationCenter defaultCenter] postNotificationName:IMReloadGroupListNotification object:nil];
                 
                 [[self navigationController] popToRootViewControllerAnimated:YES];
             } failure:^(NSString *error) {
@@ -412,6 +420,7 @@
                         return ;
                     }
                 }
+                [[NSNotificationCenter defaultCenter] postNotificationName:IMReloadGroupListNotification object:nil];
                 
                 [[self navigationController] popToRootViewControllerAnimated:YES];
             } failure:^(NSString *error) {

@@ -80,6 +80,8 @@
 }
 
 - (void)rightBarButtonItemClick {
+    [[self view] endEditing:YES];
+    
     if (_hud) {
         [_hud hide:YES];
         [_hud removeFromSuperview];

@@ -164,7 +164,7 @@
         [_totalNumLabel setText:@"正在获取好友列表..."];
         [_totalNumLabel setCenter:CGPointMake(160, 180)];
     }else if ([_friendList count] > 0) {
-        [_totalNumLabel setText:[NSString stringWithFormat:@"%lu位联系人",(unsigned long)[_friendList count]]];
+        [_totalNumLabel setText:[NSString stringWithFormat:@"%lu位联系人",(unsigned long)[friendList count]]];
         [_totalNumLabel setFrame:CGRectMake(10, 0, 300, 44)];
 
     } else {
